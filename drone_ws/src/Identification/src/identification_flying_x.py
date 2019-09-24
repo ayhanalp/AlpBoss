@@ -2,7 +2,7 @@
 
 from std_msgs.msg import Empty, UInt8
 from geometry_msgs.msg import Twist, Pose, PoseStamped
-from vive_localization.msg import PoseMeas
+from gps_localization.msg import PoseMeas
 import rospy
 import numpy as np
 import scipy.io as io

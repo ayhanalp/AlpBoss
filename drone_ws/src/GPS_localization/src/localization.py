@@ -5,7 +5,7 @@ from geometry_msgs.msg import (PointStamped, PoseStamped, TwistStamped,
                                TransformStamped, Point)
 from std_msgs.msg import Empty
 from std_msgs.msg import String
-from GPS_localization.msg import PoseMeas
+from gps_localization.msg import PoseMeas
 
 import numpy as np
 import rospy
@@ -22,7 +22,7 @@ from fabulous.color import highlight_red, blue, green
 import triad_openvr
 
 
-class GPS_Localization(object):
+class GpsLocalization(object):
     '''
     '''
 
@@ -30,7 +30,7 @@ class GPS_Localization(object):
         '''
         Initialization of Demo object.
         '''
-        rospy.init_node('GPS_localization')
+        rospy.init_node('gps_localization')
 
         self.pose_d_in_w = PoseStamped()
         self.pose_t_in_w.header.frame_id = "world"
@@ -41,10 +41,10 @@ class GPS_Localization(object):
         #                                'GPS_localization/sample_time', 0.02)
 
         self.pos_update = rospy.Publisher(
-            'GPS_localization/pose', PoseMeas, queue_size=1)
+            'gps_localization/pose', PoseMeas, queue_size=1)
 
         self.ready = rospy.Publisher(
-            'GPS_localization/ready', Empty, queue_size=1)
+            'gps_localization/ready', Empty, queue_size=1)
 
 
         rospy.Subscriber('dji_sdk/local_position', PointStamped, self.get_pose_gps)
@@ -235,5 +235,5 @@ class GPS_Localization(object):
 
 
 if __name__ == '__main__':
-    localization = GPS_Localization()
+    localization = GpsLocalization()
     localization.start()
