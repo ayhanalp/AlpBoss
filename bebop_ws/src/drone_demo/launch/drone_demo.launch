@@ -1,0 +1,8 @@
+<launch>
+
+  <node name="drone_demo" pkg="drone_demo" type="bebop_core.py" output="screen"/>
+
+  <include file="$(find bebop_demo)/launch/controller.launch" />
+  <include file="$(find localization)/launch/localization.launch" />
+
+</launch>
