@@ -5,10 +5,10 @@ from geometry_msgs.msg import (Twist, TwistStamped, Point, PointStamped,
 from sensor_msgs.msg import Joy
 from std_msgs.msg import Bool, Empty, String
 from visualization_msgs.msg import Marker, MarkerArray
-from bebop_demo.msg import Trigger, Trajectories, Obstacle
+from drone_demo.msg import Trigger, Trajectories, Obstacle
 from GPS_localization.msg import PoseMeas
 
-from bebop_demo.srv import GetPoseEst, ConfigMotionplanner
+from drone_demo.srv import GetPoseEst, ConfigMotionplanner
 from dji_sdk.srv import DroneTaskControl
 
 import rospy

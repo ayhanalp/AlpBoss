@@ -22,8 +22,8 @@ class Perception(object):
         Initialization of Perception object.
         """
         self.pose_vive = TwistStamped()
-        self.pose_bebop = Twist()
-        self.twist_bebop = Twist()
+        self.pose_drone = Twist()
+        self.twist_drone = Twist()
         self.tf_t_in_w_prev = TransformStamped()
         self.init = True
         self.vive_calibrating = False
@@ -35,12 +35,12 @@ class Perception(object):
         # reading out the vive.
         rospy.Subscriber('/dji_sdk/gps_health', UInt8, self.store_gps_health)
 
-    def get_bebop_data(self, data):
+    def get_drone_data(self, data):
         """
-        Updates pose and twist data by using measurements on the bebop itself.
+        Updates pose and twist data by using measurements on the drone itself.
         """
-        self.pose_bebop = data.pose.pose
-        self.twist_bebop = data.twist.twist
+        self.pose_drone = data.pose.pose
+        self.twist_drone = data.twist.twist
 
     def measurement_check(self):
         '''Monitor function: check GPS health.

@@ -4,10 +4,10 @@ from geometry_msgs.msg import (
     Twist, PoseStamped, Point, PointStamped, TwistStamped)
 from localization.msg import PoseMeas
 from std_msgs.msg import String, Empty, Bool
-from bebop_msgs.msg import (Ardrone3PilotingStateFlyingStateChanged,
+from drone_msgs.msg import (Ardrone3PilotingStateFlyingStateChanged,
                             CommonCommonStateBatteryStateChanged)
 
-from bebop_demo.srv import GetPoseEst, GetPoseEstResponse, GetPoseEstRequest
+from drone_demo.srv import GetPoseEst, GetPoseEstResponse, GetPoseEstRequest
 
 import numpy as np
 import math as m
@@ -33,7 +33,7 @@ class Demo(object):
         Initialization of Demo object.
         '''
 
-        rospy.init_node('bebop_demo')
+        rospy.init_node('drone_demo')
 
         self.state = "initialization"
         self.state_sequence = []
@@ -89,7 +89,7 @@ class Demo(object):
         out the current state and returns to the standby state when task is
         completed.
         '''
-        print green('----    Bebop core running     ----')
+        print green('----    Core running     ----')
 
         while not rospy.is_shutdown():
             if self.new_task:
@@ -100,7 +100,7 @@ class Demo(object):
                 # Run over sequence of states corresponding to current task.
                 for state in self.state_sequence:
                     self.state = state
-                    print cyan(' Bebop_core state changed to: ', self.state)
+                    print cyan(' Core state changed to: ', self.state)
                     self.fsm_state.publish(state)
 
                     # IRRELEVANT WHEN NOT USING OMGTOOLS
@@ -144,7 +144,7 @@ class Demo(object):
                 if not self.new_task:
                     self.state = "standby"
                     self.fsm_state.publish("standby")
-                    print cyan(' Bebop_core state changed to: ', "standby")
+                    print cyan(' Core state changed to: ', "standby")
 
             rospy.sleep(0.1)
 
@@ -228,7 +228,7 @@ class Demo(object):
 
         self.state_sequence = self.task_dict.get(task.data, [])
         self.new_task = True
-        print cyan(' Bebop_core received a new task: ', task.data)
+        print cyan(' Core received a new task: ', task.data)
 
     # REPLACE WITH TAKE-OFF/LANDING PROCEDURE DJI
     # def take_off_land(self, pressed):
