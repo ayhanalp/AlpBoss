@@ -1,0 +1,127 @@
+#!/usr/bin/env python
+
+from std_msgs.msg import Empty, UInt8
+from geometry_msgs.msg import Twist, Pose, PoseStamped
+from vive_localization.msg import PoseMeas
+import rospy
+import numpy as np
+import scipy.io as io
+
+
+class Ident(object):
+
+    def __init__(self):
+        """
+        """
+        self.ident_length = 3
+        self.index = 0
+        self.rate = 14
+        self.wait1 = 0.1
+        self.wait2 = 0.11
+        self.wait3 = 0.10
+        span = int(self.ident_length*(
+                    self.wait1*4 + self.wait2+self.wait3)*self.rate*50 + 10)
+        self.input = np.zeros(span)
+        self.output_x = np.zeros(span)
+        self.output_y = np.zeros(span)
+        self.output_z = np.zeros(span)
+        self.time = np.zeros(span)
+        self.input = Twist()
+        self.measuring = False
+
+        self.cmd_input = rospy.Publisher('bebop/cmd_input', Twist, queue_size=1)
+        self.take_off = rospy.Publisher('bebop/takeoff', Empty, queue_size=1)
+        self.land = rospy.Publisher('bebop/land', Empty, queue_size=1)
+        rospy.Subscriber('demo', Empty, self.flying)
+        rospy.Subscriber(
+            'GPS_localization/pose', PoseMeas, self.update_pose)
+
+    def start(self):
+        rospy.init_node('identification')
+        print 'started'
+        rospy.spin()
+
+    def flying(self, empty):
+
+        self.take_off.publish(Empty())
+        print 'Billie is flying'
+
+        rospy.sleep(4)
+        input_cmd_max = 0.15
+
+        # move back and forth with a pause in between
+        self.input.linear.x = 0.0
+        self.input.linear.y = 0.0
+        self.input.linear.z = 0.0
+        self.measuring = True
+
+        for k in range(0, self.ident_length):
+            self.input.linear.x = input_cmd_max/3.
+
+            for x in range(0, self.rate):
+                self.cmd_input.publish(self.input)
+                rospy.sleep(self.wait1)
+
+            self.input.linear.x = -input_cmd_max/3.
+
+            for x in range(0, self.rate):
+                self.cmd_input.publish(self.input)
+                rospy.sleep(self.wait2)
+
+            self.input.linear.x = input_cmd_max/3.*2.
+
+            for x in range(0, self.rate):
+                self.cmd_input.publish(self.input)
+                rospy.sleep(self.wait1)
+
+            self.input.linear.x = -input_cmd_max/3.*2.
+
+            for x in range(0, self.rate):
+                self.cmd_input.publish(self.input)
+                rospy.sleep(self.wait3)
+
+            self.input.linear.x = input_cmd_max
+
+            for x in range(0, self.rate):
+                self.cmd_input.publish(self.input)
+                rospy.sleep(self.wait1)
+
+            self.input.linear.x = -input_cmd_max
+
+            for x in range(0, self.rate):
+                self.cmd_input.publish(self.input)
+                rospy.sleep(self.wait1)
+
+        self.measuring = False
+
+        self.input.linear.x = 0.0
+        self.input.linear.y = 0.0
+        self.input.linear.z = 0.0
+        self.cmd_input.publish(self.input)
+
+        rospy.sleep(1)
+
+        self.land.publish(Empty())
+        print 'Billie has landed'
+
+        meas = {}
+        meas['input'] = self.input
+        meas['output_x'] = self.output_x
+        meas['output_y'] = self.output_y
+        meas['output_z'] = self.output_z
+        meas['time'] = self.time
+        io.savemat('../angle_identification_x.mat', meas)
+
+    def update_pose(self, meas):
+        if self.measuring:
+            self.input[self.index] = self.input.linear.x
+            self.output_x[self.index] = meas.meas_world.pose.position.x
+            self.output_y[self.index] = meas.meas_world.pose.position.y
+            self.output_z[self.index] = meas.meas_world.pose.position.z
+            self.time[self.index] = meas.meas_world.header.stamp.to_sec()
+            self.index += 1
+
+
+if __name__ == '__main__':
+    Billy = Ident()
+    Billy.start()
