@@ -2,6 +2,6 @@
 
   <node name="identification" pkg="identification" type="identification_flying_x.py" output="screen"/>
 
-  <include file="$(find GPS_localization)/launch/localization.launch" />
+  <include file="$(find gps_localization)/launch/localization.launch" />
 
 </launch>

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>GPS_localization</name>
+  <name>gps_localization</name>
   <version>0.0.1</version>
   <description>
   vive localization
