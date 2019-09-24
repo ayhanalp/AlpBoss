@@ -3,9 +3,6 @@
   <node name="bebop_demo" pkg="bebop_demo" type="bebop_core.py" output="screen"/>
 
   <include file="$(find bebop_demo)/launch/controller.launch" />
-  <include file="$(find vive_localization)/launch/localization.launch" />
-  <include file="$(find vive_ctrl_buttons)/launch/vive_ctrl_buttons.launch" />
-  <!-- <include file="$(find bebop_driver)/launch/bebop_node.launch" /> -->
-  <!-- <include file="$(find bebop_tools)/launch/joy_teleop.launch" /> -->
+  <include file="$(find localization)/launch/localization.launch" />
 
 </launch>

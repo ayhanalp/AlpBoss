@@ -2,7 +2,7 @@
 
 from geometry_msgs.msg import Twist, TwistStamped, TransformStamped
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Empty
+from std_msgs.msg import Empty, UInt8
 
 import numpy as np
 import tf2_ros
@@ -33,9 +33,7 @@ class Perception(object):
 
         # Name of topic can change depending on name used in the code for
         # reading out the vive.
-        rospy.Subscriber('/bebop/odom', Odometry, self.get_bebop_data)
-        rospy.Subscriber(
-            'vive_localization/calibrate', Empty, self.vive_calibrate)
+        rospy.Subscriber('/dji_sdk/gps_health', UInt8, self.store_gps_health)
 
     def get_bebop_data(self, data):
         """
@@ -45,41 +43,14 @@ class Perception(object):
         self.twist_bebop = data.twist.twist
 
     def measurement_check(self):
-        '''Monitor function: checks measurement.
-        If the measurement equals the vive frame origin, this means that
-        vibrations cause a false measurement.
-
-        Should be moved to monitor later.
+        '''Monitor function: check GPS health.
         '''
-        tf_v_in_w = self.get_transform("vive", "world")
-        tf_t_in_w = self.get_transform("tracker", "world")
-
-        meas_distance = np.linalg.norm(
-            np.array([tf_t_in_w.transform.translation.x,
-                      tf_t_in_w.transform.translation.y,
-                      tf_t_in_w.transform.translation.z])
-            - np.array([self.tf_t_in_w_prev.transform.translation.x,
-                        self.tf_t_in_w_prev.transform.translation.y,
-                        self.tf_t_in_w_prev.transform.translation.z]))
-        self.tf_t_in_w_prev = tf_t_in_w
-
-        measurement_valid = not (
-            (tf_v_in_w.transform == tf_t_in_w.transform) or
-            (meas_distance > 0.25))
-        if not measurement_valid:
-            if not (self.init or self.vive_calibrating):
-                print highlight_red(' Warning: invalid measurement!')
-            else:
-                self.init = False
-                self.vive_calibrating = False
+        measurement_valid = (self.gps_health >= 3) 
 
         return measurement_valid
 
-    def vive_calibrate(self, *_):
-        '''When Vive is calibrating, an invalid measurement is perceived once,
-        but then we don't want to trigger emergency.
-        '''
-        self.vive_calibrating = True
+    def store_gps_health(self, health):
+        self.gps_health = health 
 
     def get_transform(self, _from, _to):
         '''

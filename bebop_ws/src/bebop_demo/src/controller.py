@@ -2,12 +2,14 @@
 
 from geometry_msgs.msg import (Twist, TwistStamped, Point, PointStamped,
                                Pose, PoseStamped)
+from sensor_msgs.msg import Joy
 from std_msgs.msg import Bool, Empty, String
 from visualization_msgs.msg import Marker, MarkerArray
 from bebop_demo.msg import Trigger, Trajectories, Obstacle
-from vive_localization.msg import PoseMeas
+from GPS_localization.msg import PoseMeas
 
 from bebop_demo.srv import GetPoseEst, ConfigMotionplanner
+from dji_sdk.srv import DroneTaskControl
 
 import rospy
 import numpy as np
@@ -36,9 +38,10 @@ class Controller(object):
                            "emergency": self.repeat_safety_brake,
                            "take-off": self.take_off_land,
                            "land": self.take_off_land,
+                           "build fast trajectory": self.build_traj,
+                           "build slow trajectory": self.build_traj,
                            "follow path": self.follow_traj,
-                           "reset PID": self.reset_pid_gains,
-                           "gamepad flying": self.gamepad_flying}
+                           "reset PID": self.reset_pid_gains}
 
         self._init_params()
         self._init_variables()
@@ -50,58 +53,57 @@ class Controller(object):
         self.tfBuffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tfBuffer)
 
+    # UPDATE PARAMETERS FOR DJI!
     def _init_vel_model(self):
-        '''Initializes model parameters for conversion of desired velocities to
-        angle inputs.Discrete time state space model (Ts=0.01s) of the
-        inverted, LPF filtered velocity system.
+    #     '''Initializes model parameters for conversion of desired velocities to
+    #     angle inputs.Discrete time state space model (Ts=0.01s) of the
+    #     inverted, LPF filtered velocity system.
 
-        '''
-        Ax = np.array([
-                    [2.924615161772681, -1.426022503893993, 0.927378249329201],
-                    [2.0,    0.,    0.],
-                    [0.,     0.5,   0.]])
-        Ay = np.array([
-                    [2.924615161772681, -1.426022503893993, 0.927378249329201],
-                    [2.0,    0.,    0.],
-                    [0.,     0.5,   0.]])
-        Az = np.array([[1.946703849484298, -0.948087691346676],
-                       [1.0,    0.]])
+    #     '''
+    #     Ax = np.array([
+    #                 [2.924615161772681, -1.426022503893993, 0.927378249329201],
+    #                 [2.0,    0.,    0.],
+    #                 [0.,     0.5,   0.]])
+    #     Ay = np.array([
+    #                 [2.924615161772681, -1.426022503893993, 0.927378249329201],
+    #                 [2.0,    0.,    0.],
+    #                 [0.,     0.5,   0.]])
+    #     Az = np.array([[1.946703849484298, -0.948087691346676],
+    #                    [1.0,    0.]])
 
-        self.A = np.zeros([8, 8])
-        self.A[0:3, 0:3] = Ax
-        self.A[3:6, 3:6] = Ay
-        self.A[6:8, 6:8] = Az
+    #     self.A = np.zeros([8, 8])
+    #     self.A[0:3, 0:3] = Ax
+    #     self.A[3:6, 3:6] = Ay
+    #     self.A[6:8, 6:8] = Az
 
-        self.B = np.zeros([8, 3])
-        self.B[0, 0] = 0.25
-        self.B[3, 1] = 0.25
-        self.B[6, 2] = 0.25
+    #     self.B = np.zeros([8, 3])
+    #     self.B[0, 0] = 0.25
+    #     self.B[3, 1] = 0.25
+    #     self.B[6, 2] = 0.25
 
-        self.C = np.zeros([3, 8])
-        self.C[0, 0:3] = [0.093794142767462,
-                          -0.091022743092107,
-                          0.088262872564127]
-        self.C[1, 3:6] = [0.110260524508392,
-                          -0.107520541682973,
-                          0.104800707877982]
-        self.C[2, 6:8] = [0.094457321516314,
-                          -0.088810404097729]
+    #     self.C = np.zeros([3, 8])
+    #     self.C[0, 0:3] = [0.093794142767462,
+    #                       -0.091022743092107,
+    #                       0.088262872564127]
+    #     self.C[1, 3:6] = [0.110260524508392,
+    #                       -0.107520541682973,
+    #                       0.104800707877982]
+    #     self.C[2, 6:8] = [0.094457321516314,
+    #                       -0.088810404097729]
 
-        self.D = np.array([[0.011815313012427, 0.0, 0.0],
-                           [0.0, 0.013957040852033, 0.0],
-                           [0.0, 0.0,  0.011763641499985]])
+    #     self.D = np.array([[0.011815313012427, 0.0, 0.0],
+    #                        [0.0, 0.013957040852033, 0.0],
+    #                        [0.0, 0.0,  0.011763641499985]])
 
     def _init_topics(self):
         '''Initializes rostopic Publishers and Subscribers.
         '''
+        # REPLACE BY TOPIC FOR CMDS DJI
+        self.cmd_vel_dji = rospy.Publisher(
+            '/dji_sdk/flight_control_setpoint_generic',
+            Joy, queue_size=1)
         self.cmd_vel = rospy.Publisher(
             'drone/cmd_vel', Twist, queue_size=1)
-        self.take_off = rospy.Publisher(
-            'bebop/takeoff', Empty, queue_size=1)
-        self.land = rospy.Publisher(
-            'drone/land', Empty, queue_size=1)
-        self._mp_trigger_topic = rospy.Publisher(
-            'motionplanner/trigger', Trigger, queue_size=1)
         self.vhat_vector_pub = rospy.Publisher(
             'motionplanner/vhat_vector', Marker, queue_size=1)
         self.trajectory_desired = rospy.Publisher(
@@ -175,8 +177,6 @@ class Controller(object):
         self.state_changed = False
         self.executing_state = False
         self.state_killed = False
-        self.trackpad_held = False
-        self.r_trigger_held = False
         self.overtime = False
 
         # Measurement related variables
@@ -192,23 +192,15 @@ class Controller(object):
                            'x': [0.0], 'y': [0.0], 'z': [0.0]}
         self.X = np.array(
                     [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0]])
-        self.desired_yaw = np.pi/2.
+        self.desired_yaw = 0.
         self.real_yaw = 0.0
         self.pos_nrm = np.inf
         self.fb_cmd_prev = Twist()
         self.pos_error_prev = PointStamped()
         self.vel_error_prev = PointStamped()
         self.measurement_valid = False
-        self.static_obst = []
-        self.dynamic_obst = []
-        self.omg_index = 1
-        self.difficult_obst = False
         self._goal = Pose()
         self.hover_setpoint = Pose()
-        self.ctrl_r_pos = Pose()
-        self.ctrl_r_vel = Twist()
-        self.ctrl_l_pos = Pose()
-        self.ctrl_l_vel = Twist()
         self.draw = False
         self.drag = False
 
@@ -257,13 +249,6 @@ class Controller(object):
                 self.hover()
             self.rate.sleep()
 
-
-
-
-    ###################
-    # State functions #
-    ###################
-
     def switch_state(self, state):
         '''Switches state according to the general fsm state as received by
         core.
@@ -300,32 +285,111 @@ class Controller(object):
 
             fb_cmd = self.feedbeck(pos_desired, vel_desired)
 
-            self.full_cmd.twist = fb_cmd
-            self.full_cmd.header.stamp = rospy.Time.now()
-            self.cmd_vel.publish(self.full_cmd.twist)
+            self.send_input(fb_cmd)
+
 
     def take_off_land(self):
-        '''Function needed to wait when taking of or landing to make sure no
-        control inputs are sent out.
+        '''Take off or land.
         '''
-        self.cmd_vel.publish(Twist())
+        # self.cmd_vel.publish(Twist())
         self.full_cmd.twist = Twist()
 
-        if self.state == "take-off" and not self.airborne:
-            counter = 0
-            self.take_off.publish(Empty())
-            while not (self.airborne or (counter > 50) or (
-                    rospy.is_shutdown() or self.state_killed)):
-                counter += 1
-                rospy.sleep(0.1)
+        if self.state == "take-off":
+            try:
+                takeoff = rospy.ServiceProxy(
+                    "/dji_sdk/drone_task_control", DroneTaskControl)
+                takeoff_success = takeoff(task=4)
+            except rospy.ServiceException, e:
+                print highlight_red('Takeoff service call failed: %s') % e
+                takeoff_success = False
 
-        elif self.state == "land" and self.airborne:
+        elif self.state == "land":
             self.reset_pid_gains()
-            rospy.sleep(0.1)
-            self.land.publish(Empty())
-            while self.airborne and (
-                    not (rospy.is_shutdown() or self.state_killed)):
-                rospy.sleep(0.1)
+            try:
+                land = rospy.ServiceProxy(
+                    "/dji_sdk/drone_task_control", DroneTaskControl)
+                takeoff_success = takeoff(task=6)
+            except rospy.ServiceException, e:
+                print highlight_red('Land service call failed: %s') % e
+                takeoff_success = False
+
+    def build_traj(self):
+        '''Build and pre-process a trajectory.
+        '''
+        self.reset_traj_markers()
+        print yellow('---- Creating path ----')
+
+        if self.state == "build fast trajectory":
+            self.max_vel = rospy.get_param('motionplanner/vmax_fast', 0.5)
+        else:
+            self.max_vel = rospy.get_param('motionplanner/vmax_low', 0.5)
+
+
+        # CREATE TRAJECTORY HERE!
+        #
+        # ...
+
+
+
+
+
+
+
+        # Clip positions to make sure path does not lie outside room.
+        self.drawn_pos_x = [
+                    max(- (self.room_width/2. - self.drone_radius),
+                        min((self.room_width/2. - self.drone_radius),
+                        (elem))) for elem in self.drawn_pos_x]
+        self.drawn_pos_y = [
+                    max(- (self.room_depth/2. - self.drone_radius),
+                        min((self.room_depth/2. - self.drone_radius),
+                        (elem))) for elem in self.drawn_pos_y]
+        self.drawn_pos_z = [
+                    max((self.drone_radius * 2.5),
+                        min((self.room_height - self.drone_radius),
+                        (elem))) for elem in self.drawn_pos_z]
+
+        # Add padding to path for filtering purposes
+        padding = 10
+        self.drawn_pos_x = (
+                        [self.drawn_pos_x[0] for i in range(padding)]
+                        + self.drawn_pos_x +
+                        [self.drawn_pos_x[-1] for i in range(padding)])
+        self.drawn_pos_y = (
+                        [self.drawn_pos_y[0] for i in range(padding)]
+                        + self.drawn_pos_y +
+                        [self.drawn_pos_y[-1] for i in range(padding)])
+        self.drawn_pos_z = (
+                        [self.drawn_pos_z[0] for i in range(padding)]
+                        + self.drawn_pos_z +
+                        [self.drawn_pos_z[-1] for i in range(padding)])
+
+        # Process the drawn trajectory so the drone is able to follow
+        # this path.
+        if len(self.drawn_pos_x) > (50 + padding*2):
+            self.diff_interp_traj()
+            self.low_pass_filter_drawn_traj()
+            self.differentiate_traj()
+            (self.drawn_vel_filt_x,
+             self.drawn_vel_filt_y,
+             self.drawn_vel_filt_z) = (
+                                    self.pad_lpf(self.drawn_vel_x[:],
+                                                 self.drawn_vel_y[:],
+                                                 self.drawn_vel_z[:]))
+            padding = 50
+            self.drawn_pos_x, self.drawn_pos_y, self.drawn_pos_z = (
+                                    self.pad_in_front(self.drawn_pos_x,
+                                                      self.drawn_pos_y,
+                                                      self.drawn_pos_z,
+                                                      padding))
+            self.drawn_vel_x, self.drawn_vel_y, self.drawn_vel_z = (
+                                    self.pad_in_front(self.drawn_vel_x,
+                                                      self.drawn_vel_y,
+                                                      self.drawn_vel_z,
+                                                      padding, True))
+        else:
+            print highlight_red(
+                            ' Path too short, draw a longer path! ')
 
     def follow_traj(self):
         '''Lets the drone fly along the drawn path.
@@ -369,7 +433,7 @@ class Controller(object):
             if self.state_killed:
                 break
 
-            self.draw_update(index)
+            self.traj_update(index)
             index += 1
             # Determine whether goal has been reached.
             if ((len(self.drawn_vel_filt_x) - index) < 100):
@@ -378,7 +442,7 @@ class Controller(object):
             self.rate.sleep()
         self.reset_pid_gains()
 
-    def draw_update(self, index):
+    def traj_update(self, index):
         '''
         - Updates the controller with newly calculated trajectories and
         velocity commands.
@@ -438,54 +502,6 @@ class Controller(object):
         vel.twist.linear.z = self.drawn_vel_z[index]
         self.combine_ff_fb(pos, vel)
 
-  
-    def hover_changed_gains(self):
-        '''Adapts gains for the undamped spring (only Kp) or viscous fluid
-        (only Kd) illustration.
-        '''
-        self.hover_setpoint.position.z = rospy.get_param(
-            'controller/standard_height', 1.5)
-
-        if self.state == "undamped spring":
-            self.Kp_x = self.Kp_x/4.
-            self.Ki_x = 0.
-            self.Kd_x = 0.
-            self.Kp_y = self.Kp_y/4.
-            self.Ki_y = 0.
-            self.Kd_y = 0.
-            self.Kp_z = self.Kp_z/8.
-            self.Ki_z = 0.
-
-        elif self.state == "viscous fluid":
-            self.Kp_x = 0.
-            self.Ki_x = 0.
-            self.Kd_x = self.Kd_x
-            self.Kp_y = 0.
-            self.Ki_y = 0.
-            self.Kd_y = self.Kd_y
-            self.Kp_z = self.Kp_z/8.
-            self.Ki_z = 0.
-
-        while not (self.state_changed or
-                   rospy.is_shutdown() or self.state_killed):
-            self.hover()
-            self.rate.sleep()
-
-    def set_omg_update_time(self):
-        '''Adapts the MPC update rate to the difficulty of the obstacles and
-        corresponding computation time.
-        '''
-        if self.difficult_obst:
-            self.omg_update_time = rospy.get_param(
-                                        'controller/omg_update_time_slow', 0.5)
-            self.pos_nrm_tol = rospy.get_param(
-                                   'controller/goal_reached_pos_tol_slow', 0.2)
-        else:
-            self.omg_update_time = rospy.get_param(
-                                             'controller/omg_update_time', 0.5)
-            self.pos_nrm_tol = rospy.get_param(
-                                       'controller/goal_reached_pos_tol', 0.05)
-
     def set_ff_pid_gains(self):
         '''Sets pid gains to a lower setting for combination with feedforward
         flight to keep the controller stable.
@@ -533,83 +549,6 @@ class Controller(object):
         self.Kp_z = rospy.get_param('controller/Kp_z', 0.5)
         self.Ki_z = rospy.get_param('controller/Ki_z', 1.5792)
 
-    def gamepad_flying(self):
-        '''Sets up a ros subscriber to read out the inputs given by the gamepad
-        and removes this subscriber when the controller switches states.
-        '''
-        self.meas = {}
-        (self.meas['meas_pos_x'], self.meas['meas_pos_y'],
-         self.meas['meas_pos_z']) = [], [], []
-        (self.meas['est_pos_x'], self.meas['est_pos_y'],
-         self.meas['est_pos_z']) = [], [], []
-        (self.meas['est_vel_x'], self.meas['est_vel_y'],
-         self.meas['est_vel_z']) = [], [], []
-        (self.meas['input_x'], self.meas['input_y'],
-         self.meas['input_z']) = [], [], []
-        self.meas['meas_time'], self.meas['est_time'] = [], []
-
-        self.meas['meas_pos_x'].append(self.meas_pos_x)
-        self.meas['meas_pos_y'].append(self.meas_pos_y)
-        self.meas['meas_pos_z'].append(self.meas_pos_z)
-        self.meas['meas_time'].append(self.meas_time)
-
-        self.gamepad_input = rospy.Subscriber('bebop/cmd_vel',
-                                              Twist, self.retrieve_gp_input)
-
-        while not (rospy.is_shutdown() or self.state_killed):
-            if self.state_changed:
-                self.state_changed = False
-                break
-            rospy.sleep(0.1)
-        self.gamepad_input.unregister()
-        print yellow(' Length of measurement: ', len(self.meas['meas_pos_x']))
-        io.savemat('../kalman_check.mat', self.meas)
-
-    def dodge_dyn_obst(self):
-        '''Uses OMG-tools to dodge a moving obstacle coming towards the drone
-        and returns back to original position when possible.
-        '''
-        radius = 0.50
-        self.dynamic_obst = [Obstacle(obst_type=String(
-                            data="inf cylinder"),
-                            shape=[radius],
-                            pose=[self.ctrl_r_pos.position.x,
-                                  self.ctrl_r_pos.position.y],
-                            velocity=[self.ctrl_r_vel.linear.x,
-                                      self.ctrl_r_vel.linear.y])]
-        self.static_obst = []
-        self.publish_obst_room(Empty)
-        self.config_mp()
-        self.set_omg_goal(self.drone_pose_est)
-        self.omg_index = 1
-        self.set_omg_update_time()
-        self.set_ff_pid_gains()
-
-        while not (self.state_changed or (
-                rospy.is_shutdown() or self.state_killed)):
-            # Becomes True when goal is set.
-            # Update dynamic obstacle info for when motionplanner is fired.
-            self.dynamic_obst = [Obstacle(obst_type=String(
-                                  data="inf cylinder"),
-                                  shape=[radius],
-                                  pose=[self.ctrl_r_pos.position.x,
-                                        self.ctrl_r_pos.position.y],
-                                  velocity=[self.ctrl_r_vel.linear.x,
-                                            self.ctrl_r_vel.linear.y])]
-            self.omg_update()
-            self.rate.sleep()
-        self.dynamic_obst = []
-        self.config_mp()
-        self.hover_setpoint = self.drone_pose_est
-        self.reset_pid_gains()
-        if not self.state_killed:
-            self.state_changed = False
-        self.state_killed = False
-
-    ####################
-    # Helper functions #
-    ####################
-
     def check_goal_reached(self):
         '''Determines whether goal is reached.
         Returns:
@@ -631,6 +570,24 @@ class Controller(object):
         rotated world frame world_rot.
         '''
         self.ff_velocity = self.transform_twist(vel, "world", "world_rot")
+
+    ####################
+    # Helper functions #
+    ####################
+
+    def send_input(self, input_cmd):
+        '''Publish input command both as a Twist() (old bebop style,
+        needed for Kalman) and as a sensor_msgs/Joy msg for DJI drone.
+        
+        input_cmd: Twist()
+        '''
+        self.full_cmd.twist = input_cmd
+        self.full_cmd.header.stamp = rospy.Time.now()
+        self.cmd_vel.publish(self.full_cmd.twist)
+
+        full_cmd_dji = Joy()
+        full_cmd_dji.header = self.full_cmd.header
+        
 
     def convert_vel_cmd(self):
         '''Converts a velocity command to a desired input angle according to
@@ -780,25 +737,26 @@ class Controller(object):
 
         return fb_cmd
 
-    def safety_brake(self):
-        '''Brake as emergency measure: Bebop brakes automatically when
-            /bebop/cmd_vel topic receives all zeros.
-        '''
-        self.full_cmd.twist = Twist()
-        self.cmd_vel.publish(self.full_cmd.twist)
+    # REMOVE? OR ADAPT FOR DJI
+    # def safety_brake(self):
+    #     '''Brake as emergency measure: Bebop brakes automatically when
+    #         /bebop/cmd_vel topic receives all zeros.
+    #     '''
+    #     self.full_cmd.twist = Twist()
+    #     self.cmd_vel.publish(self.full_cmd.twist)
 
-    def repeat_safety_brake(self):
-        '''More permanent emergency measure: keep safety braking until new task
-        (eg. land) is given.
-        '''
-        while not (rospy.is_shutdown() or self.state_killed):
-            self.safety_brake()
-            self.rate.sleep()
+    # def repeat_safety_brake(self):
+    #     '''More permanent emergency measure: keep safety braking until new task
+    #     (eg. land) is given.
+    #     '''
+    #     while not (rospy.is_shutdown() or self.state_killed):
+    #         self.safety_brake()
+    #         self.rate.sleep()
 
     def get_pose_est(self):
         '''Retrieves a new pose estimate from world model.
         '''
-        # This service is provided as soon as vive is ready. (See bebop_test)
+        # This service is provided as soon as vive is ready.
         rospy.wait_for_service("/world_model/get_pose")
         try:
             pose_est = rospy.ServiceProxy(
@@ -820,41 +778,6 @@ class Controller(object):
         except rospy.ServiceException, e:
             print highlight_red('Service call failed: %s') % e
             return
-
-    def load_trajectories(self):
-        self._traj['u'] = self._traj_strg['u'][:]
-        self._traj['v'] = self._traj_strg['v'][:]
-        self._traj['w'] = self._traj_strg['w'][:]
-        self._traj['x'] = self._traj_strg['x'][:]
-        self._traj['y'] = self._traj_strg['y'][:]
-        self._traj['z'] = self._traj_strg['z'][:]
-
-    def store_trajectories(self, u_traj, v_traj, w_traj,
-                           x_traj, y_traj, z_traj, success):
-        '''Stores the trajectories and indicate that new trajectories have
-        been calculated.
-
-        Args:
-            u_traj : trajectory speed in z-direction
-            v_traj : trajectory speed in x-direction
-            w_traj : trajectory speed in y-direction
-            x_traj : trajectory position in x-direction
-            y_traj : trajectory position in y-direction
-            z_traj : trajectory position in z-direction
-        '''
-        self._traj_strg = {}
-        u_traj, v_traj, w_traj = self.pad_lpf(list(u_traj),
-                                              list(v_traj),
-                                              list(w_traj))
-        self._traj_strg = {'u': u_traj, 'v': v_traj, 'w': w_traj,
-                           'x': x_traj, 'y': y_traj, 'z': z_traj}
-        self._new_trajectories = True
-        self.calc_succeeded = success
-
-        x_traj = self._traj_strg['x'][:]
-        y_traj = self._traj_strg['y'][:]
-        z_traj = self._traj_strg['z'][:]
-        self.publish_desired(x_traj, y_traj, z_traj)
 
     def transform_twist(self, twist, _from, _to):
         '''Transforms twist (geometry_msgs/Twist) from frame "_from" to
@@ -882,7 +805,7 @@ class Controller(object):
 
         return point_transformed
 
-    # REPLACE WITH DJI STATE
+    # REPLACE WITH DJI FLYING STATE
     # def bebop_flying_state(self, flying_state):
     #     '''Checks whether the drone is standing on the ground or flying and
     #     changes the self.airborne variable accordingly.
@@ -1132,7 +1055,7 @@ class Controller(object):
 
     def publish_current_ff_vel(self, pos, vel):
         '''Publish current velocity reference vector where origin of the
-        vector is equal to current omg-tools position.
+        vector is equal to current reference position.
         '''
         self.current_ff_vel.header.stamp = rospy.get_rostime()
 
