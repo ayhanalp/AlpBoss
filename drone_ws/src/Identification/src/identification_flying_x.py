@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from std_msgs.msg import Empty, UInt8
+from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Twist, Pose, PoseStamped
 from gps_localization.msg import PoseMeas
 import rospy
@@ -46,12 +47,12 @@ class Ident(object):
 
         # Take off
         try:
-                takeoff = rospy.ServiceProxy(
-                    "/dji_sdk/drone_task_control", DroneTaskControl)
-                takeoff_success = takeoff(task=4)
-            except rospy.ServiceException, e:
-                print highlight_red('Takeoff service call failed: %s') % e
-                takeoff_success = False
+            takeoff = rospy.ServiceProxy(
+                "/dji_sdk/drone_task_control", DroneTaskControl)
+            takeoff_success = takeoff(task=4)
+        except rospy.ServiceException, e:
+            print highlight_red('Takeoff service call failed: %s') % e
+            takeoff_success = False
         print 'Flying, starting experiment in 10s'
 
         rospy.sleep(10)

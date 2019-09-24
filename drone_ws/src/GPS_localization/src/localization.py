@@ -3,9 +3,11 @@
 
 from geometry_msgs.msg import (PointStamped, PoseStamped, TwistStamped,
                                TransformStamped, Point)
+from sensor_msgs.msg import Joy
 from std_msgs.msg import Empty
 from std_msgs.msg import String
 from gps_localization.msg import PoseMeas
+from dji_sdk import SetLocalPosRef
 
 import numpy as np
 import rospy
@@ -13,13 +15,8 @@ import sys
 import tf
 import tf2_ros
 import tf2_geometry_msgs as tf2_geom
-from dji_sdk import local_position
-from dji_sdk import gps_health
-import dji_sdk_demo
 
 from fabulous.color import highlight_red, blue, green
-
-import triad_openvr
 
 
 class GpsLocalization(object):
@@ -33,7 +30,7 @@ class GpsLocalization(object):
         rospy.init_node('gps_localization')
 
         self.pose_d_in_w = PoseStamped()
-        self.pose_t_in_w.header.frame_id = "world"
+        self.pose_d_in_w.header.frame_id = "world"
 
         self.tf_r_in_w_timestamp_old = rospy.Time.now()
         self.tf_t_in_w_timestamp_old = rospy.Time.now()
@@ -48,8 +45,6 @@ class GpsLocalization(object):
 
 
         rospy.Subscriber('dji_sdk/local_position', PointStamped, self.get_pose_gps)
-
-
 
     def start(self):
         '''
@@ -118,12 +113,11 @@ class GpsLocalization(object):
         self.pose_d_in_w.header.frame_id = "world"
         self.pose_d_in_w.header.stamp = rospy.Time.now()
         self.pose_d_in_w.pose.position = gps_coord.point
-'''
-        pose_t_in_v.pose.orientation.x = quat[0]
-        pose_t_in_v.pose.orientation.y = quat[1]
-        pose_t_in_v.pose.orientation.z = quat[2]
-        pose_t_in_v.pose.orientation.w = quat[3]
-        '''
+
+        #pose_t_in_v.pose.orientation.x = quat[0]
+        #pose_t_in_v.pose.orientation.y = quat[1]
+        #pose_t_in_v.pose.orientation.z = quat[2]
+        #pose_t_in_v.pose.orientation.w = quat[3]
         self.publish_pose_est()
 
 
