@@ -13,6 +13,7 @@ class Ident(object):
     def __init__(self):
         """
         """
+        self.input_cmd_max = 0.15
         self.ident_length = 3
         self.index = 0
         self.rate = 14
@@ -29,25 +30,32 @@ class Ident(object):
         self.input = Twist()
         self.measuring = False
 
-        self.cmd_input = rospy.Publisher('bebop/cmd_input', Twist, queue_size=1)
-        self.take_off = rospy.Publisher('bebop/takeoff', Empty, queue_size=1)
-        self.land = rospy.Publisher('bebop/land', Empty, queue_size=1)
+        self.cmd_input = rospy.Publisher('/dji_sdk/flight_control_setpoint_generic',
+                                         Joy, queue_size=1)
+        
         rospy.Subscriber('demo', Empty, self.flying)
         rospy.Subscriber(
             'GPS_localization/pose', PoseMeas, self.update_pose)
 
     def start(self):
         rospy.init_node('identification')
-        print 'started'
+        print 'identification started'
         rospy.spin()
 
     def flying(self, empty):
 
-        self.take_off.publish(Empty())
-        print 'Billie is flying'
+        # Take off
+        try:
+                takeoff = rospy.ServiceProxy(
+                    "/dji_sdk/drone_task_control", DroneTaskControl)
+                takeoff_success = takeoff(task=4)
+            except rospy.ServiceException, e:
+                print highlight_red('Takeoff service call failed: %s') % e
+                takeoff_success = False
+        print 'Flying, starting experiment in 10s'
 
-        rospy.sleep(4)
-        input_cmd_max = 0.15
+        rospy.sleep(10)
+
 
         # move back and forth with a pause in between
         self.input.linear.x = 0.0
@@ -56,37 +64,37 @@ class Ident(object):
         self.measuring = True
 
         for k in range(0, self.ident_length):
-            self.input.linear.x = input_cmd_max/3.
+            self.input.linear.x = self.input_cmd_max/3.
 
             for x in range(0, self.rate):
                 self.cmd_input.publish(self.input)
                 rospy.sleep(self.wait1)
 
-            self.input.linear.x = -input_cmd_max/3.
+            self.input.linear.x = -self.input_cmd_max/3.
 
             for x in range(0, self.rate):
                 self.cmd_input.publish(self.input)
                 rospy.sleep(self.wait2)
 
-            self.input.linear.x = input_cmd_max/3.*2.
+            self.input.linear.x = self.input_cmd_max/3.*2.
 
             for x in range(0, self.rate):
                 self.cmd_input.publish(self.input)
                 rospy.sleep(self.wait1)
 
-            self.input.linear.x = -input_cmd_max/3.*2.
+            self.input.linear.x = -self.input_cmd_max/3.*2.
 
             for x in range(0, self.rate):
                 self.cmd_input.publish(self.input)
                 rospy.sleep(self.wait3)
 
-            self.input.linear.x = input_cmd_max
+            self.input.linear.x = self.input_cmd_max
 
             for x in range(0, self.rate):
                 self.cmd_input.publish(self.input)
                 rospy.sleep(self.wait1)
 
-            self.input.linear.x = -input_cmd_max
+            self.input.linear.x = -self.input_cmd_max
 
             for x in range(0, self.rate):
                 self.cmd_input.publish(self.input)
@@ -101,8 +109,15 @@ class Ident(object):
 
         rospy.sleep(1)
 
-        self.land.publish(Empty())
-        print 'Billie has landed'
+        try:
+            land = rospy.ServiceProxy(
+                "/dji_sdk/drone_task_control", DroneTaskControl)
+            takeoff_success = takeoff(task=6)
+            print 'Landed'
+
+        except rospy.ServiceException, e:
+            print highlight_red('Land service call failed: %s') % e
+            takeoff_success = False
 
         meas = {}
         meas['input'] = self.input
@@ -120,6 +135,28 @@ class Ident(object):
             self.output_z[self.index] = meas.meas_world.pose.position.z
             self.time[self.index] = meas.meas_world.header.stamp.to_sec()
             self.index += 1
+
+    def send_input(self, input_cmd):
+        '''Publish input command both as a Twist() (old bebop style,
+        needed for Kalman) and as a sensor_msgs/Joy msg for DJI drone.
+        
+        input_cmd: Twist()
+        '''
+        self.input = input_cmd
+        self.cmd_vel.publish(self.full_cmd.twist)
+
+        flag = UInt8(data=np.uint8(0))  # VERT_VEL, HORI_ATTI_TILT_ANG, YAW_ANG
+        # flag = UInt8(data=np.uint8(8))  # VERT_VEL, HORI_ATTI_TILT_ANG, YAW_RATE
+
+        full_cmd_dji = Joy()
+        full_cmd_dji.header = self.full_cmd.header
+        full_cmd_dji.axes = [full_cmd.linear.y,
+                             full_cmd.linear.x,
+                             -full_cmd.linear.z,
+                             -full_cmd.angular.z,
+                             flag]
+
+        self.cmd_vel_dji.publish(full_cmd_dji)
 
 
 if __name__ == '__main__':

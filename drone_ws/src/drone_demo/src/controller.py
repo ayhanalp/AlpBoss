@@ -287,7 +287,6 @@ class Controller(object):
 
             self.send_input(fb_cmd)
 
-
     def take_off_land(self):
         '''Take off or land.
         '''
@@ -585,8 +584,18 @@ class Controller(object):
         self.full_cmd.header.stamp = rospy.Time.now()
         self.cmd_vel.publish(self.full_cmd.twist)
 
+        flag = UInt8(data=np.uint8(0))  # VERT_VEL, HORI_ATTI_TILT_ANG, YAW_ANG
+        # flag = UInt8(data=np.uint8(8))  # VERT_VEL, HORI_ATTI_TILT_ANG, YAW_RATE
+
         full_cmd_dji = Joy()
         full_cmd_dji.header = self.full_cmd.header
+        full_cmd_dji.axes = [full_cmd.linear.y,
+                             full_cmd.linear.x,
+                             -full_cmd.linear.z,
+                             -full_cmd.angular.z,
+                             flag]
+
+        self.cmd_vel_dji.publish(full_cmd_dji)
         
 
     def convert_vel_cmd(self):
@@ -646,76 +655,48 @@ class Controller(object):
         '''
         fb_cmd = Twist()
 
-        if (self.state in {"undamped spring", "viscous fluid"}):
-            # # PD
-            pos_error = PointStamped()
-            pos_error.header.frame_id = "world"
-            pos_error.point.x = (pos_desired.point.x -
-                                 self.drone_pose_est.position.x)
-            pos_error.point.y = (pos_desired.point.y -
-                                 self.drone_pose_est.position.y)
-            pos_error.point.z = (pos_desired.point.z -
-                                 self.drone_pose_est.position.z)
+        # # PID
+        pos_error_prev = self.pos_error_prev
+        pos_error = PointStamped()
+        pos_error.header.frame_id = "world"
+        pos_error.point.x = (pos_desired.point.x
+                             - self.drone_pose_est.position.x)
+        pos_error.point.y = (pos_desired.point.y
+                             - self.drone_pose_est.position.y)
+        pos_error.point.z = (pos_desired.point.z
+                             - self.drone_pose_est.position.z)
 
-            vel_error = PointStamped()
-            vel_error.header.frame_id = "world"
-            vel_error.point.x = vel_desired.linear.x - self.drone_vel_est.x
-            vel_error.point.y = vel_desired.linear.y - self.drone_vel_est.y
+        vel_error_prev = self.vel_error_prev
+        vel_error = PointStamped()
+        vel_error.header.frame_id = "world"
+        vel_error.point.x = vel_desired.linear.x - self.drone_vel_est.x
+        vel_error.point.y = vel_desired.linear.y - self.drone_vel_est.y
 
-            pos_error = self.transform_point(pos_error, "world", "world_rot")
-            vel_error = self.transform_point(vel_error, "world", "world_rot")
+        pos_error = self.transform_point(pos_error, "world", "world_rot")
+        vel_error = self.transform_point(vel_error, "world", "world_rot")
 
-            fb_cmd.linear.x = max(- self.max_input, min(self.max_input, (
-                    self.Kp_x*pos_error.point.x +
-                    self.Kd_x*vel_error.point.x)))
-            fb_cmd.linear.y = max(- self.max_input, min(self.max_input, (
-                    self.Kp_y*pos_error.point.y +
-                    self.Kd_y*vel_error.point.y)))
-            fb_cmd.linear.z = max(- self.max_input, min(self.max_input, (
-                    self.Kp_z*pos_error.point.z)))
-        else:
-            # # PID
-            pos_error_prev = self.pos_error_prev
-            pos_error = PointStamped()
-            pos_error.header.frame_id = "world"
-            pos_error.point.x = (pos_desired.point.x
-                                 - self.drone_pose_est.position.x)
-            pos_error.point.y = (pos_desired.point.y
-                                 - self.drone_pose_est.position.y)
-            pos_error.point.z = (pos_desired.point.z
-                                 - self.drone_pose_est.position.z)
+        fb_cmd.linear.x = max(- self.max_input, min(self.max_input, (
+                self.fb_cmd_prev.linear.x +
+                (self.Kp_x + self.Ki_x*self._sample_time/2) *
+                pos_error.point.x +
+                (-self.Kp_x + self.Ki_x*self._sample_time/2) *
+                pos_error_prev.point.x +
+                self.Kd_x*(vel_error.point.x - vel_error_prev.point.x))))
 
-            vel_error_prev = self.vel_error_prev
-            vel_error = PointStamped()
-            vel_error.header.frame_id = "world"
-            vel_error.point.x = vel_desired.linear.x - self.drone_vel_est.x
-            vel_error.point.y = vel_desired.linear.y - self.drone_vel_est.y
+        fb_cmd.linear.y = max(- self.max_input, min(self.max_input, (
+                self.fb_cmd_prev.linear.y +
+                (self.Kp_y + self.Ki_y*self._sample_time/2) *
+                pos_error.point.y +
+                (-self.Kp_y + self.Ki_y*self._sample_time/2) *
+                pos_error_prev.point.y +
+                self.Kd_y*(vel_error.point.y - vel_error_prev.point.y))))
 
-            pos_error = self.transform_point(pos_error, "world", "world_rot")
-            vel_error = self.transform_point(vel_error, "world", "world_rot")
-
-            fb_cmd.linear.x = max(- self.max_input, min(self.max_input, (
-                    self.fb_cmd_prev.linear.x +
-                    (self.Kp_x + self.Ki_x*self._sample_time/2) *
-                    pos_error.point.x +
-                    (-self.Kp_x + self.Ki_x*self._sample_time/2) *
-                    pos_error_prev.point.x +
-                    self.Kd_x*(vel_error.point.x - vel_error_prev.point.x))))
-
-            fb_cmd.linear.y = max(- self.max_input, min(self.max_input, (
-                    self.fb_cmd_prev.linear.y +
-                    (self.Kp_y + self.Ki_y*self._sample_time/2) *
-                    pos_error.point.y +
-                    (-self.Kp_y + self.Ki_y*self._sample_time/2) *
-                    pos_error_prev.point.y +
-                    self.Kd_y*(vel_error.point.y - vel_error_prev.point.y))))
-
-            fb_cmd.linear.z = max(- self.max_input, min(self.max_input, (
-                    self.fb_cmd_prev.linear.z +
-                    (self.Kp_z + self.Ki_z*self._sample_time/2) *
-                    pos_error.point.z +
-                    (-self.Kp_z + self.Ki_z*self._sample_time/2) *
-                    pos_error_prev.point.z)))
+        fb_cmd.linear.z = max(- self.max_input, min(self.max_input, (
+                self.fb_cmd_prev.linear.z +
+                (self.Kp_z + self.Ki_z*self._sample_time/2) *
+                pos_error.point.z +
+                (-self.Kp_z + self.Ki_z*self._sample_time/2) *
+                pos_error_prev.point.z)))
 
         # Add theta feedback to remain at zero yaw angle
         angle_error = ((((self.desired_yaw - self.real_yaw) -
@@ -736,22 +717,6 @@ class Controller(object):
         self.pos_error_pub.publish(pos_error)
 
         return fb_cmd
-
-    # REMOVE? OR ADAPT FOR DJI
-    # def safety_brake(self):
-    #     '''Brake as emergency measure: Bebop brakes automatically when
-    #         /bebop/cmd_vel topic receives all zeros.
-    #     '''
-    #     self.full_cmd.twist = Twist()
-    #     self.cmd_vel.publish(self.full_cmd.twist)
-
-    # def repeat_safety_brake(self):
-    #     '''More permanent emergency measure: keep safety braking until new task
-    #     (eg. land) is given.
-    #     '''
-    #     while not (rospy.is_shutdown() or self.state_killed):
-    #         self.safety_brake()
-    #         self.rate.sleep()
 
     def get_pose_est(self):
         '''Retrieves a new pose estimate from world model.
