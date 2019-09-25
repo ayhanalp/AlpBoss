@@ -1,0 +1,3 @@
+int64 current_mission_leg
+---
+int64 next_mission_leg

@@ -1,0 +1,53 @@
+Determining if the pthread_create exist failed with the following output:
+Change Dir: /home/ubuntu/catkin_ws/src/Onboard-SDK-ROS/dji_sdk/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_ae7b4/fast"
+/usr/bin/make -f CMakeFiles/cmTC_ae7b4.dir/build.make CMakeFiles/cmTC_ae7b4.dir/build
+make[1]: Entering directory `/home/ubuntu/catkin_ws/src/Onboard-SDK-ROS/dji_sdk/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_ae7b4.dir/CheckSymbolExists.c.o
+/usr/bin/cc     -o CMakeFiles/cmTC_ae7b4.dir/CheckSymbolExists.c.o   -c /home/ubuntu/catkin_ws/src/Onboard-SDK-ROS/dji_sdk/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_ae7b4
+/usr/local/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ae7b4.dir/link.txt --verbose=1
+/usr/bin/cc       CMakeFiles/cmTC_ae7b4.dir/CheckSymbolExists.c.o  -o cmTC_ae7b4 -rdynamic 
+CMakeFiles/cmTC_ae7b4.dir/CheckSymbolExists.c.o: In function `main':
+CheckSymbolExists.c:(.text+0xe): undefined reference to `pthread_create'
+CheckSymbolExists.c:(.text+0x12): undefined reference to `pthread_create'
+make[1]: Leaving directory `/home/ubuntu/catkin_ws/src/Onboard-SDK-ROS/dji_sdk/CMakeFiles/CMakeTmp'
+collect2: error: ld returned 1 exit status
+make[1]: *** [cmTC_ae7b4] Error 1
+make: *** [cmTC_ae7b4/fast] Error 2
+
+File /home/ubuntu/catkin_ws/src/Onboard-SDK-ROS/dji_sdk/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <pthread.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef pthread_create
+  return ((int*)(&pthread_create))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /home/ubuntu/catkin_ws/src/Onboard-SDK-ROS/dji_sdk/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_7257b/fast"
+/usr/bin/make -f CMakeFiles/cmTC_7257b.dir/build.make CMakeFiles/cmTC_7257b.dir/build
+make[1]: Entering directory `/home/ubuntu/catkin_ws/src/Onboard-SDK-ROS/dji_sdk/CMakeFiles/CMakeTmp'
+make[1]: Warning: File `/usr/local/share/cmake-3.4/Modules/CheckFunctionExists.c' has modification time 5e+08 s in the future
+Building C object CMakeFiles/cmTC_7257b.dir/CheckFunctionExists.c.o
+/usr/bin/cc    -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_7257b.dir/CheckFunctionExists.c.o   -c /usr/local/share/cmake-3.4/Modules/CheckFunctionExists.c
+Linking C executable cmTC_7257b
+/usr/local/bin/cmake -E cmake_link_script CMakeFiles/cmTC_7257b.dir/link.txt --verbose=1
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTC_7257b.dir/CheckFunctionExists.c.o  -o cmTC_7257b -rdynamic -lpthreads 
+/usr/bin/ld: cannot find -lpthreads
+make[1]: Leaving directory `/home/ubuntu/catkin_ws/src/Onboard-SDK-ROS/dji_sdk/CMakeFiles/CMakeTmp'
+collect2: error: ld returned 1 exit status
+make[1]: *** [cmTC_7257b] Error 1
+make: *** [cmTC_7257b/fast] Error 2
+
+
