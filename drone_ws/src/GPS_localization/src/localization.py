@@ -7,7 +7,8 @@ from sensor_msgs.msg import Joy
 from std_msgs.msg import Empty
 from std_msgs.msg import String
 from gps_localization.msg import PoseMeas
-from dji_sdk import SetLocalPosRef
+
+from dji_sdk.srv import SetLocalPosRef
 
 import numpy as np
 import rospy
@@ -27,6 +28,8 @@ class GpsLocalization(object):
         '''
         Initialization of Demo object.
         '''
+				
+        print "LOC INIT"
         rospy.init_node('gps_localization')
 
         self.pose_d_in_w = PoseStamped()
@@ -50,15 +53,18 @@ class GpsLocalization(object):
         '''
         Starts running of localization node.
         '''
+        print 'START BEGIN'
         self.calibrate()
 
         self.init_transforms()
-
+				
+        print 'SPINNING'
         rospy.spin()
 
     def init_transforms(self):
         '''
         '''
+        print 'INIT TRANSFORMS START'
         self.broadc = tf2_ros.TransformBroadcaster()
         self.stbroadc = tf2_ros.StaticTransformBroadcaster()
 
@@ -87,7 +93,8 @@ class GpsLocalization(object):
         print green('---- GPS Localization running ----')
 
     def calibrate(self, *_):
-
+        print 'CALIBRATE START'
+        rospy.sleep(5)
         rospy.wait_for_service("/dji_sdk/set_local_pos_ref")
         try:
             set_local_pos_ref = rospy.ServiceProxy(
@@ -118,6 +125,7 @@ class GpsLocalization(object):
         #pose_t_in_v.pose.orientation.y = quat[1]
         #pose_t_in_v.pose.orientation.z = quat[2]
         #pose_t_in_v.pose.orientation.w = quat[3]
+        print self.pose_d_in_w
         self.publish_pose_est()
 
 
