@@ -30,22 +30,26 @@ class GpsLocalization(object):
         '''
 				
         print "LOC INIT"
+        self.init = True
         rospy.init_node('gps_localization')
+
+        self.broadc = tf2_ros.TransformBroadcaster()
+        self.stbroadc = tf2_ros.StaticTransformBroadcaster()
+        self.tfBuffer = tf2_ros.Buffer()
+        self.listener = tf2_ros.TransformListener(self.tfBuffer)
 
         self.pose_d_in_w = PoseStamped()
         self.pose_d_in_w.header.frame_id = "world"
 
         self.tf_r_in_w_timestamp_old = rospy.Time.now()
-        self.tf_t_in_w_timestamp_old = rospy.Time.now()
+        self.tf_d_in_w_timestamp_old = rospy.Time.now()
         #self.sample_time = rospy.get_param(
         #                                'GPS_localization/sample_time', 0.02)
 
         self.pos_update = rospy.Publisher(
             'gps_localization/pose', PoseMeas, queue_size=1)
-
         self.ready = rospy.Publisher(
             'gps_localization/ready', Empty, queue_size=1)
-
 
         rospy.Subscriber('dji_sdk/local_position', PointStamped, self.get_pose_gps)
 
@@ -60,37 +64,6 @@ class GpsLocalization(object):
 				
         print 'SPINNING'
         rospy.spin()
-
-    def init_transforms(self):
-        '''
-        '''
-        print 'INIT TRANSFORMS START'
-        self.broadc = tf2_ros.TransformBroadcaster()
-        self.stbroadc = tf2_ros.StaticTransformBroadcaster()
-
-        self.tfBuffer = tf2_ros.Buffer()
-        self.listener = tf2_ros.TransformListener(self.tfBuffer)
-
-
-        # self.stbroadc.sendTransform(self.tf_w_in_v)
-        # rospy.sleep(2.)
-
-        self.tf_r_in_w = TransformStamped()
-        self.tf_r_in_w.header.frame_id = "world"
-        self.tf_r_in_w.child_frame_id = "world_rot"
-
-        self.tf_d_in_w = TransformStamped()
-        self.tf_d_in_w.header.frame_id = "world"
-        self.tf_d_in_w.child_frame_id = "drone"
-        
-        # Wait for first gps coordinate
-        while not self.pose_d_in_w:
-            rospy.sleep(0.1)
-        self.tf_t_in_v = self.pose_to_tf(self.pose_d_in_w, "drone")
-        self.broadc.sendTransform(self.tf_d_in_w)
-
-        self.ready.publish(Empty())
-        print green('---- GPS Localization running ----')
 
     def calibrate(self, *_):
         print 'CALIBRATE START'
@@ -107,6 +80,37 @@ class GpsLocalization(object):
 
         print blue('---- Calibrated ---- \n')
 
+    def init_transforms(self):
+        '''
+        '''
+        print 'INIT TRANSFORMS START'
+        self.tf_w_in_ref = TransformStamped()
+        self.tf_w_in_ref.header.frame_id = "ref"
+        self.tf_w_in_ref.child_frame_id = "world"
+        self.tf_w_in_ref.transform.rotation.w = 1.
+        self.stbroadc.sendTransform(self.tf_w_in_ref)
+        rospy.sleep(2.)
+
+        self.tf_r_in_w = TransformStamped()
+        self.tf_r_in_w.header.frame_id = "world"
+        self.tf_r_in_w.child_frame_id = "world_rot"
+
+        self.tf_d_in_w = TransformStamped()
+        self.tf_d_in_w.header.frame_id = "world"
+        self.tf_d_in_w.child_frame_id = "drone"
+        self.tf_d_in_w.transform.rotation.w = 1.        
+
+        # Wait for first gps coordinate
+        while not self.pose_d_in_w:
+            rospy.sleep(0.1)
+        self.tf_d_in_w = self.pose_to_tf(self.pose_d_in_w, "drone")
+        self.broadc.sendTransform(self.tf_d_in_w)
+
+        self.init = False       
+        self.ready.publish(Empty())
+        print green('---- GPS Localization running ----')
+
+
     def get_pose_gps(self, gps_coord):
         '''Returns PoseStamped of the i'th object in self.tracked_objects.
         Pose is expressed in gps reference frame.
@@ -117,13 +121,13 @@ class GpsLocalization(object):
 
         self.pose_d_in_w.header.stamp = rospy.Time.now()
         self.pose_d_in_w.pose.position = gps_coord.point
-        print 
         #pose_t_in_v.pose.orientation.x = quat[0]
         #pose_t_in_v.pose.orientation.y = quat[1]
         #pose_t_in_v.pose.orientation.z = quat[2]
-        #pose_t_in_v.pose.orientation.w = quat[3]
-
-        self.publish_pose_est()
+        self.pose_d_in_w.pose.orientation.w = 1.
+        
+        if not self.init:
+        	self.publish_pose_est()
 
 
     def publish_pose_est(self):

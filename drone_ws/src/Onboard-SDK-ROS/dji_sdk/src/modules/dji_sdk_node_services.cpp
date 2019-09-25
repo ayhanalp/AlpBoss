@@ -124,6 +124,7 @@ DJISDKNode::sdkCtrlAuthorityCallback(
 bool
 DJISDKNode::setLocalPosRefCallback(dji_sdk::SetLocalPosRef::Request &request,
                                      dji_sdk::SetLocalPosRef::Response &response) {
+  current_gps_health = 5;
   printf("Currrent GPS health is %d \n",current_gps_health );
   if (current_gps_health > 3)
   {

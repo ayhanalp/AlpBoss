@@ -4,6 +4,9 @@ from std_msgs.msg import Empty, UInt8
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Twist, Pose, PoseStamped
 from gps_localization.msg import PoseMeas
+
+from dji_sdk.srv import DroneTaskControl
+
 import rospy
 import numpy as np
 import scipy.io as io
@@ -31,7 +34,7 @@ class Ident(object):
         self.input = Twist()
         self.measuring = False
 
-        self.cmd_input = rospy.Publisher('/dji_sdk/flight_control_setpoint_generic',
+        self.cmd_vel_dji = rospy.Publisher('/dji_sdk/flight_control_setpoint_generic',
                                          Joy, queue_size=1)
         
         rospy.Subscriber('demo', Empty, self.flying)
@@ -46,16 +49,19 @@ class Ident(object):
     def flying(self, empty):
 
         # Take off
+        print 'Trying to take off'
         try:
             takeoff = rospy.ServiceProxy(
                 "/dji_sdk/drone_task_control", DroneTaskControl)
-            takeoff_success = takeoff(task=4)
+            takeoff_success = takeoff(np.uint8(4))
+            print 'inside try'
         except rospy.ServiceException, e:
             print highlight_red('Takeoff service call failed: %s') % e
             takeoff_success = False
-        print 'Flying, starting experiment in 10s'
+        print takeoff_success
+        print 'Taking off, starting experiment in 3s'
 
-        rospy.sleep(10)
+        rospy.sleep(3)
 
 
         # move back and forth with a pause in between
@@ -68,37 +74,37 @@ class Ident(object):
             self.input.linear.x = self.input_cmd_max/3.
 
             for x in range(0, self.rate):
-                self.cmd_input.publish(self.input)
+                self.send_input(self.input)
                 rospy.sleep(self.wait1)
 
             self.input.linear.x = -self.input_cmd_max/3.
 
             for x in range(0, self.rate):
-                self.cmd_input.publish(self.input)
+                self.send_input(self.input)
                 rospy.sleep(self.wait2)
 
             self.input.linear.x = self.input_cmd_max/3.*2.
 
             for x in range(0, self.rate):
-                self.cmd_input.publish(self.input)
+                self.send_input(self.input)
                 rospy.sleep(self.wait1)
 
             self.input.linear.x = -self.input_cmd_max/3.*2.
 
             for x in range(0, self.rate):
-                self.cmd_input.publish(self.input)
+                self.send_input(self.input)
                 rospy.sleep(self.wait3)
 
             self.input.linear.x = self.input_cmd_max
 
             for x in range(0, self.rate):
-                self.cmd_input.publish(self.input)
+                self.send_input(self.input)
                 rospy.sleep(self.wait1)
 
             self.input.linear.x = -self.input_cmd_max
 
             for x in range(0, self.rate):
-                self.cmd_input.publish(self.input)
+                self.send_input(self.input)
                 rospy.sleep(self.wait1)
 
         self.measuring = False
@@ -106,7 +112,7 @@ class Ident(object):
         self.input.linear.x = 0.0
         self.input.linear.y = 0.0
         self.input.linear.z = 0.0
-        self.cmd_input.publish(self.input)
+        self.send_input(self.input)
 
         rospy.sleep(1)
 
@@ -144,20 +150,21 @@ class Ident(object):
         input_cmd: Twist()
         '''
         self.input = input_cmd
-        self.cmd_vel.publish(self.full_cmd.twist)
-
-        flag = UInt8(data=np.uint8(0))  # VERT_VEL, HORI_ATTI_TILT_ANG, YAW_ANG
+        flag = 0
+        #flag = UInt8(data=np.uint8(0))  # VERT_VEL, HORI_ATTI_TILT_ANG, YAW_ANG
         # flag = UInt8(data=np.uint8(8))  # VERT_VEL, HORI_ATTI_TILT_ANG, YAW_RATE
 
-        full_cmd_dji = Joy()
-        full_cmd_dji.header = self.full_cmd.header
-        full_cmd_dji.axes = [full_cmd.linear.y,
-                             full_cmd.linear.x,
-                             -full_cmd.linear.z,
-                             -full_cmd.angular.z,
+        cmd_dji = Joy()
+        cmd_dji.header.frame_id = "world_r"
+        cmd_dji.header.stamp = rospy.Time.now()
+        cmd_dji.axes = [input_cmd.linear.y,
+                             input_cmd.linear.x,
+                             -input_cmd.linear.z,
+                             -input_cmd.angular.z,
                              flag]
 
-        self.cmd_vel_dji.publish(full_cmd_dji)
+        print cmd_dji
+        self.cmd_vel_dji.publish(cmd_dji)
 
 
 if __name__ == '__main__':
