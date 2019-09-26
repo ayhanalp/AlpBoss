@@ -163,7 +163,7 @@ class Ident(object):
                              -input_cmd.angular.z,
                              flag]
 
-        print cmd_dji
+        #print cmd_dji
         self.cmd_vel_dji.publish(cmd_dji)
 
 
