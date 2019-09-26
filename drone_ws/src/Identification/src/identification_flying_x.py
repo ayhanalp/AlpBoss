@@ -72,6 +72,7 @@ class Ident(object):
 
         for k in range(0, self.ident_length):
             self.input.linear.x = self.input_cmd_max/3.
+            
 
             for x in range(0, self.rate):
                 self.send_input(self.input)
@@ -132,6 +133,7 @@ class Ident(object):
         meas['output_y'] = self.output_y
         meas['output_z'] = self.output_z
         meas['time'] = self.time
+        print self.input, self.output_x, self.output_y, self.output_z, self.time
         io.savemat('../angle_identification_x.mat', meas)
 
     def update_pose(self, meas):
@@ -157,13 +159,12 @@ class Ident(object):
         cmd_dji = Joy()
         cmd_dji.header.frame_id = "world_r"
         cmd_dji.header.stamp = rospy.Time.now()
-        cmd_dji.axes = [input_cmd.linear.y,
-                             input_cmd.linear.x,
+        cmd_dji.axes = [input_cmd.linear.x,
+                             -input_cmd.linear.y,
                              -input_cmd.linear.z,
                              -input_cmd.angular.z,
                              flag]
-
-        #print cmd_dji
+        print cmd_dji
         self.cmd_vel_dji.publish(cmd_dji)
 
 
