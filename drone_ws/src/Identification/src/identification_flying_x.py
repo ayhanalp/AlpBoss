@@ -17,23 +17,43 @@ class Ident(object):
     def __init__(self):
         """
         """
-        self.input_cmd_max = 0.15
-        self.ident_length = 3
+        rospy.init_node('identification')
+        self.input_cmd_max = 5
         self.index = 0
-        self.rate = 14
-        self.wait1 = 0.1
-        self.wait2 = 0.11
-        self.wait3 = 0.10
-        span = int(self.ident_length*(
-                    self.wait1*4 + self.wait2+self.wait3)*self.rate*50 + 10)
+        self.rate = rospy.Rate(100)
+        self.nrofcycles = 10
+        self.cycles1 = 100
+        self.cycles2 = 200
+        #self.cycles3 = 0.10
+        span = 10*(self.cycles1)
         self.input = np.zeros(span)
         self.output_x = np.zeros(span)
         self.output_y = np.zeros(span)
         self.output_z = np.zeros(span)
         self.time = np.zeros(span)
-        self.input = Twist()
+        self.input_cmd = Twist()
         self.measuring = False
 
+        # Controller flag settings (dji sdk)
+        self.VERTICAL_VEL = 0x00
+        self.VERTICAL_POS = 0x10
+        self.VERTICAL_THRUST = 0x20
+
+        self.HORIZONTAL_ANGLE = 0x00
+        self.HORIZONTAL_VELOCITY = 0x40
+        self.HORIZONTAL_POSITION = 0x80
+        self.HORIZONTAL_ANGULAR_RATE = 0xC0
+
+        self.YAW_ANGLE = 0x00
+        self.YAW_RATE = 0x08
+
+        self.HORIZONTAL_GROUND = 0x00
+        self.HORIZONTAL_BODY = 0x02
+
+        self.STABLE_DISABLE = 0x00
+        self.STABLE_ENABLE = 0x01
+
+        # TOPICS
         self.cmd_vel_dji = rospy.Publisher('/dji_sdk/flight_control_setpoint_generic',
                                          Joy, queue_size=1)
         
@@ -42,12 +62,12 @@ class Ident(object):
             'GPS_localization/pose', PoseMeas, self.update_pose)
 
     def start(self):
-        rospy.init_node('identification')
-        print 'identification started'
+ 
+        print 'Ready to go'
         rospy.spin()
 
     def flying(self, empty):
-
+        print 'identification started'
         # Take off
         print 'Trying to take off'
         try:
@@ -59,61 +79,55 @@ class Ident(object):
             print highlight_red('Takeoff service call failed: %s') % e
             takeoff_success = False
         print takeoff_success
-        print 'Taking off, starting experiment in 3s'
+        print 'Taking off, starting experiment in a few seconds'
 
-        rospy.sleep(3)
-
-
+        rospy.sleep(5)
+        print 'Start!'
         # move back and forth with a pause in between
-        self.input.linear.x = 0.0
-        self.input.linear.y = 0.0
-        self.input.linear.z = 0.0
+        self.input_cmd.linear.x = 0.0
+        self.input_cmd.linear.y = 0.0
+        self.input_cmd.linear.z = 0.0
         self.measuring = True
 
-        for k in range(0, self.ident_length):
-            self.input.linear.x = self.input_cmd_max/3.
-            
 
-            for x in range(0, self.rate):
-                self.send_input(self.input)
-                rospy.sleep(self.wait1)
+        for x in range(0, 500):
+           #print self.input_cmd
+           self.send_input(self.input_cmd)
+           self.rate.sleep()
 
-            self.input.linear.x = -self.input_cmd_max/3.
+        self.send_input(self.input_cmd)
+        
 
-            for x in range(0, self.rate):
-                self.send_input(self.input)
-                rospy.sleep(self.wait2)
+        print 'go higher'
+        self.input_cmd.linear.z = self.input_cmd_max
+        for x in range(0, 2000):
+           self.send_input(self.input_cmd)
+           self.rate.sleep()
 
-            self.input.linear.x = self.input_cmd_max/3.*2.
+        print 'stop'
+        self.input_cmd = Twist()
+        for x in range(0, 500):
+           self.send_input(self.input_cmd)
+           self.rate.sleep()
 
-            for x in range(0, self.rate):
-                self.send_input(self.input)
-                rospy.sleep(self.wait1)
+        print 'move forward'
+        self.input_cmd.linear.x = self.input_cmd_max
+        self.input_cmd.linear.z = 0.
+        for x in range(0, 500):
+           self.send_input(self.input_cmd)
+           self.rate.sleep()
 
-            self.input.linear.x = -self.input_cmd_max/3.*2.
 
-            for x in range(0, self.rate):
-                self.send_input(self.input)
-                rospy.sleep(self.wait3)
-
-            self.input.linear.x = self.input_cmd_max
-
-            for x in range(0, self.rate):
-                self.send_input(self.input)
-                rospy.sleep(self.wait1)
-
-            self.input.linear.x = -self.input_cmd_max
-
-            for x in range(0, self.rate):
-                self.send_input(self.input)
-                rospy.sleep(self.wait1)
-
+        self.input_cmd = Twist()
+        self.send_input(self.input_cmd)
+        
         self.measuring = False
 
-        self.input.linear.x = 0.0
-        self.input.linear.y = 0.0
-        self.input.linear.z = 0.0
-        self.send_input(self.input)
+        print 'stop'
+        self.input_cmd = Twist()
+        for x in range(0, 500):
+           self.send_input(self.input_cmd)
+           self.rate.sleep()
 
         rospy.sleep(1)
 
@@ -121,24 +135,26 @@ class Ident(object):
             land = rospy.ServiceProxy(
                 "/dji_sdk/drone_task_control", DroneTaskControl)
             takeoff_success = takeoff(task=6)
-            print 'Landed'
+            print 'Landing'
 
         except rospy.ServiceException, e:
             print highlight_red('Land service call failed: %s') % e
             takeoff_success = False
 
+        # STORE THE DATA
         meas = {}
         meas['input'] = self.input
         meas['output_x'] = self.output_x
         meas['output_y'] = self.output_y
         meas['output_z'] = self.output_z
         meas['time'] = self.time
-        print self.input, self.output_x, self.output_y, self.output_z, self.time
+        print 'identification experiment terminated'
         io.savemat('../angle_identification_x.mat', meas)
+        print 'data stored'
 
     def update_pose(self, meas):
         if self.measuring:
-            self.input[self.index] = self.input.linear.x
+            self.input[self.index] = self.input_cmd.linear.x
             self.output_x[self.index] = meas.meas_world.pose.position.x
             self.output_y[self.index] = meas.meas_world.pose.position.y
             self.output_z[self.index] = meas.meas_world.pose.position.z
@@ -151,20 +167,18 @@ class Ident(object):
         
         input_cmd: Twist()
         '''
-        self.input = input_cmd
         flag = 0
-        #flag = UInt8(data=np.uint8(0))  # VERT_VEL, HORI_ATTI_TILT_ANG, YAW_ANG
-        # flag = UInt8(data=np.uint8(8))  # VERT_VEL, HORI_ATTI_TILT_ANG, YAW_RATE
+        #flag = np.uint8(self.VERTICAL_VEL|self.HORIZONTAL_ANGLE|self.YAW_RATE|self.HORIZONTAL_GROUND|self.STABLE_ENABLE)
 
         cmd_dji = Joy()
-        cmd_dji.header.frame_id = "world_r"
+        cmd_dji.header.frame_id = "world_rot"
         cmd_dji.header.stamp = rospy.Time.now()
         cmd_dji.axes = [input_cmd.linear.x,
-                             -input_cmd.linear.y,
-                             -input_cmd.linear.z,
-                             -input_cmd.angular.z,
+                             input_cmd.linear.y,
+                             input_cmd.linear.z,
+                             input_cmd.angular.z,
                              flag]
-        print cmd_dji
+
         self.cmd_vel_dji.publish(cmd_dji)
 
 
