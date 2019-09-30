@@ -9,7 +9,4 @@
     <param name="enc_key" type="string" value="e64dbbee5e36ce505e4cb44c51458327eae4bccb21692a1fdd383e8c0399d30c"/>
     <param name="use_broadcast" type="bool" value="false"/>
     </node>
-    <!-- Added by Michael, TODO: add delay  -->
-    <node name="simu_to_dji" pkg="gst_track" type="simu_to_dji" />
-    <!-- node name="dji_mode_detector" pkg="gst_track" type="dji_mode_detector" / -->
 </launch>

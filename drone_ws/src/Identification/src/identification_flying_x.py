@@ -68,17 +68,12 @@ class Ident(object):
 
     def flying(self, empty):
         print 'identification started'
+        
+        # Request control authority from the sdk.
+        self.get_control_authority()
+
         # Take off
-        print 'Trying to take off'
-        try:
-            takeoff = rospy.ServiceProxy(
-                "/dji_sdk/drone_task_control", DroneTaskControl)
-            takeoff_success = takeoff(np.uint8(4))
-            print 'inside try'
-        except rospy.ServiceException, e:
-            print highlight_red('Takeoff service call failed: %s') % e
-            takeoff_success = False
-        print takeoff_success
+        self.take_off()
         print 'Taking off, starting experiment in a few seconds'
 
         rospy.sleep(5)
@@ -131,15 +126,7 @@ class Ident(object):
 
         rospy.sleep(1)
 
-        try:
-            land = rospy.ServiceProxy(
-                "/dji_sdk/drone_task_control", DroneTaskControl)
-            takeoff_success = takeoff(task=6)
-            print 'Landing'
-
-        except rospy.ServiceException, e:
-            print highlight_red('Land service call failed: %s') % e
-            takeoff_success = False
+        self.land()
 
         # STORE THE DATA
         meas = {}
@@ -161,6 +148,31 @@ class Ident(object):
             self.time[self.index] = meas.meas_world.header.stamp.to_sec()
             self.index += 1
 
+    def take_off(self):
+
+        print 'Trying to take off'
+        try:
+            takeoff = rospy.ServiceProxy(
+                "/dji_sdk/drone_task_control", DroneTaskControl)
+            takeoff_success = takeoff(np.uint8(4))
+            print 'inside try'
+        except rospy.ServiceException, e:
+            print highlight_red('Takeoff service call failed: %s') % e
+            takeoff_success = False
+        print takeoff_success
+
+    def land(self):
+
+        try:
+            land = rospy.ServiceProxy(
+                "/dji_sdk/drone_task_control", DroneTaskControl)
+            takeoff_success = takeoff(task=6)
+            print 'Landing'
+
+        except rospy.ServiceException, e:
+            print highlight_red('Land service call failed: %s') % e
+            takeoff_success = False
+
     def send_input(self, input_cmd):
         '''Publish input command both as a Twist() (old bebop style,
         needed for Kalman) and as a sensor_msgs/Joy msg for DJI drone.
@@ -181,6 +193,18 @@ class Ident(object):
 
         self.cmd_vel_dji.publish(cmd_dji)
 
+    def get_control_authority(self):
+
+        print 'Asking control authority'
+        try:
+            ctrl_auth = rospy.ServiceProxy(
+                "/dji_sdk/sdk_ctrl_authority_service", SDKControlAuthority)
+            ctrl_success = ctrl_auth(1)
+            print 'ctrl_succes', ctrl_succes
+        except rospy.ServiceException, e:
+            print highlight_red('Takeoff service call failed: %s') % e
+            takeoff_success = False
+        print takeoff_success
 
 if __name__ == '__main__':
     Billy = Ident()
