@@ -21,13 +21,18 @@ class Ident(object):
         self.input_cmd_max = 3
         self.input_angle_max = 0.4
         self.index = 0
-        self.rate = rospy.Rate(50)
-        self.nrofcycles = 10
-        self.cycles1 = 100
-        self.cycles2 = 200
-        #self.cycles3 = 0.10
-        span = 10*(self.cycles1)
-        self.input = np.zeros(span)
+        Ts = 0.02
+        self.rate = rospy.Rate(1/Ts)
+
+        
+        self.input = ([self.input_angle_max for i in range(0,500)] + 
+								[-self.input_angle_max for i in range(0,1000)] +
+								[self.input_angle_max for i in range(0,1000)] +
+								[-self.input_angle_max for i in range(0,500)])
+        self.input = self.input*10
+        print self.input[0:20]
+        span = len(self.input)
+
         self.output_x = np.zeros(span)
         self.output_y = np.zeros(span)
         self.output_z = np.zeros(span)
@@ -94,36 +99,20 @@ class Ident(object):
         self.send_input(self.input_cmd)
         
 
-        print 'go higher'
-        self.input_cmd.linear.z = self.input_cmd_max
-        for x in range(0, 100):
-           self.send_input(self.input_cmd)
-           self.rate.sleep()
-
-        print 'stop'
-        self.input_cmd = Twist()
-        for x in range(0, 100):
-           self.send_input(self.input_cmd)
-           self.rate.sleep()
-
         # START RECORDING ----------------------------
         self.measuring = True
 
-        print 'move forward'
-        self.input_cmd.linear.x = self.input_angle_max
-        self.input_cmd.linear.z = 0.
-        for x in range(0, 500):
+        print 'start measurements'
+        for i in range(0,len(self.input)):
+           self.input_cmd.linear.x = self.input[i]
+           #print self.input[i]
            self.send_input(self.input_cmd)
            self.rate.sleep()
-
-
-        self.input_cmd = Twist()
-        self.send_input(self.input_cmd)
         
         self.measuring = False
         # STOP RECORDING -----------------------------
 
-        print 'stop'
+        print 'stop measurements'
         self.input_cmd = Twist()
         for x in range(0, 100):
            self.send_input(self.input_cmd)
@@ -139,14 +128,14 @@ class Ident(object):
         meas['output_z'] = self.output_z
         meas['time'] = self.time
         print 'identification experiment terminated'
-        print meas
+
         io.savemat('../identification_x.mat', meas)
         print 'data stored'
 
     def update_pose(self, meas):
         if self.measuring:
-            print 'measurement', meas
-            self.input[self.index] = self.input_cmd.linear.x
+
+            #self.input[self.index] = self.input_cmd.linear.x
             self.output_x[self.index] = meas.meas_world.pose.position.x
             self.output_y[self.index] = meas.meas_world.pose.position.y
             self.output_z[self.index] = meas.meas_world.pose.position.z

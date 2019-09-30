@@ -56,7 +56,7 @@ class GpsLocalization(object):
         '''
         Starts running of localization node.
         '''
-
+        print 'START'
         self.calibrate()
 
         self.init_transforms()
@@ -64,7 +64,7 @@ class GpsLocalization(object):
         rospy.spin()
 
     def calibrate(self, *_):
-
+        print 'waiting for service local pos ref'
         rospy.wait_for_service("/dji_sdk/set_local_pos_ref")
         try:
             set_local_pos_ref = rospy.ServiceProxy(
@@ -119,7 +119,7 @@ class GpsLocalization(object):
 
         self.pose_d_in_w.header.stamp = rospy.Time.now()
         self.pose_d_in_w.pose.position = gps_coord.point
-        #pose_t_in_v.pose.orientation.x = quat[0]
+        #pose_t_in_v.pose.or	ientation.x = quat[0]
         #pose_t_in_v.pose.orientation.y = quat[1]
         #pose_t_in_v.pose.orientation.z = quat[2]
         self.pose_d_in_w.pose.orientation.w = 1.
