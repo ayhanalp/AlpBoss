@@ -106,6 +106,9 @@ class Ident(object):
            self.send_input(self.input_cmd)
            self.rate.sleep()
 
+        # START RECORDING ----------------------------
+        self.measuring = True
+
         print 'move forward'
         self.input_cmd.linear.x = self.input_angle_max
         self.input_cmd.linear.z = 0.
@@ -118,6 +121,7 @@ class Ident(object):
         self.send_input(self.input_cmd)
         
         self.measuring = False
+        # STOP RECORDING -----------------------------
 
         print 'stop'
         self.input_cmd = Twist()
