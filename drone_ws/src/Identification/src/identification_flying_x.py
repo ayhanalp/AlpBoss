@@ -5,7 +5,7 @@ from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Twist, Pose, PoseStamped
 from gps_localization.msg import PoseMeas
 
-from dji_sdk.srv import DroneTaskControl
+from dji_sdk.srv import DroneTaskControl, SDKControlAuthority
 
 import rospy
 import numpy as np
@@ -166,12 +166,12 @@ class Ident(object):
         try:
             land = rospy.ServiceProxy(
                 "/dji_sdk/drone_task_control", DroneTaskControl)
-            takeoff_success = takeoff(task=6)
+            land_success = land(task=6)
             print 'Landing'
 
         except rospy.ServiceException, e:
             print highlight_red('Land service call failed: %s') % e
-            takeoff_success = False
+            land_success = False
 
     def send_input(self, input_cmd):
         '''Publish input command both as a Twist() (old bebop style,
@@ -179,8 +179,8 @@ class Ident(object):
         
         input_cmd: Twist()
         '''
-        flag = 0
-        #flag = np.uint8(self.VERTICAL_VEL|self.HORIZONTAL_ANGLE|self.YAW_RATE|self.HORIZONTAL_GROUND|self.STABLE_ENABLE)
+        #flag = 0
+        flag = np.uint8(self.VERTICAL_VEL|self.HORIZONTAL_ANGLE|self.YAW_RATE|self.HORIZONTAL_GROUND|self.STABLE_ENABLE)
 
         cmd_dji = Joy()
         cmd_dji.header.frame_id = "world_rot"
@@ -196,15 +196,16 @@ class Ident(object):
     def get_control_authority(self):
 
         print 'Asking control authority'
+        rospy.wait_for_service("/dji_sdk/sdk_control_authority")
         try:
             ctrl_auth = rospy.ServiceProxy(
-                "/dji_sdk/sdk_ctrl_authority_service", SDKControlAuthority)
+                "/dji_sdk/sdk_control_authority", SDKControlAuthority)
             ctrl_success = ctrl_auth(1)
-            print 'ctrl_succes', ctrl_succes
+            print 'ctrl_success', ctrl_success
         except rospy.ServiceException, e:
-            print highlight_red('Takeoff service call failed: %s') % e
-            takeoff_success = False
-        print takeoff_success
+            print 'Ctrl authority service call failed: %s' % e
+            ctrl_success = False
+        print ctrl_success
 
 if __name__ == '__main__':
     Billy = Ident()
