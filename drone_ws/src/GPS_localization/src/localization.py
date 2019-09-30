@@ -29,7 +29,6 @@ class GpsLocalization(object):
         Initialization of Demo object.
         '''
 				
-        print "LOC INIT"
         self.init = True
         rospy.init_node('gps_localization')
 
@@ -57,16 +56,15 @@ class GpsLocalization(object):
         '''
         Starts running of localization node.
         '''
-        print 'START BEGIN'
+
         self.calibrate()
 
         self.init_transforms()
 				
-        print 'SPINNING'
         rospy.spin()
 
     def calibrate(self, *_):
-        print 'CALIBRATE START'
+
         rospy.wait_for_service("/dji_sdk/set_local_pos_ref")
         try:
             set_local_pos_ref = rospy.ServiceProxy(
@@ -83,7 +81,7 @@ class GpsLocalization(object):
     def init_transforms(self):
         '''
         '''
-        print 'INIT TRANSFORMS START'
+
         self.tf_w_in_ref = TransformStamped()
         self.tf_w_in_ref.header.frame_id = "ref"
         self.tf_w_in_ref.child_frame_id = "world"
@@ -125,7 +123,7 @@ class GpsLocalization(object):
         #pose_t_in_v.pose.orientation.y = quat[1]
         #pose_t_in_v.pose.orientation.z = quat[2]
         self.pose_d_in_w.pose.orientation.w = 1.
-        
+
         if not self.init:
         	self.publish_pose_est()
 
@@ -179,6 +177,7 @@ class GpsLocalization(object):
 
         # Publish pose of drone in world frame as well as yaw angle.
         data = PoseMeas(meas_world=self.pose_d_in_w, yaw=yaw)
+
         self.pos_update.publish(data)
 
     def get_euler_angles(self, transf):

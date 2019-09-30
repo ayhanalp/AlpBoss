@@ -60,7 +60,7 @@ class Ident(object):
         
         rospy.Subscriber('demo', Empty, self.flying)
         rospy.Subscriber(
-            'GPS_localization/pose', PoseMeas, self.update_pose)
+            'gps_localization/pose', PoseMeas, self.update_pose)
 
     def start(self):
  
@@ -96,13 +96,13 @@ class Ident(object):
 
         print 'go higher'
         self.input_cmd.linear.z = self.input_cmd_max
-        for x in range(0, 300):
+        for x in range(0, 100):
            self.send_input(self.input_cmd)
            self.rate.sleep()
 
         print 'stop'
         self.input_cmd = Twist()
-        for x in range(0, 300):
+        for x in range(0, 100):
            self.send_input(self.input_cmd)
            self.rate.sleep()
 
@@ -112,7 +112,7 @@ class Ident(object):
         print 'move forward'
         self.input_cmd.linear.x = self.input_angle_max
         self.input_cmd.linear.z = 0.
-        for x in range(0, 200):
+        for x in range(0, 500):
            self.send_input(self.input_cmd)
            self.rate.sleep()
 
@@ -125,11 +125,9 @@ class Ident(object):
 
         print 'stop'
         self.input_cmd = Twist()
-        for x in range(0, 500):
+        for x in range(0, 100):
            self.send_input(self.input_cmd)
            self.rate.sleep()
-
-        rospy.sleep(1)
 
         self.land()
 
@@ -146,6 +144,7 @@ class Ident(object):
 
     def update_pose(self, meas):
         if self.measuring:
+            print 'measurement', meas
             self.input[self.index] = self.input_cmd.linear.x
             self.output_x[self.index] = meas.meas_world.pose.position.x
             self.output_y[self.index] = meas.meas_world.pose.position.y
@@ -186,7 +185,6 @@ class Ident(object):
         '''
         #flag = 0
         flag = np.uint8(self.VERTICAL_VEL|self.HORIZONTAL_ANGLE|self.YAW_RATE|self.HORIZONTAL_GROUND|self.STABLE_ENABLE)
-        print flag
 
         cmd_dji = Joy()
         cmd_dji.header.frame_id = "world_rot"
