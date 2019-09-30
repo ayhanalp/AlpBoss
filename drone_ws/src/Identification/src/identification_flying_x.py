@@ -139,7 +139,8 @@ class Ident(object):
         meas['output_z'] = self.output_z
         meas['time'] = self.time
         print 'identification experiment terminated'
-        io.savemat('../angle_identification_x.mat', meas)
+        print meas
+        io.savemat('../identification_x.mat', meas)
         print 'data stored'
 
     def update_pose(self, meas):
