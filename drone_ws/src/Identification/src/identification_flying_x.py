@@ -18,9 +18,10 @@ class Ident(object):
         """
         """
         rospy.init_node('identification')
-        self.input_cmd_max = 5
+        self.input_cmd_max = 3
+        self.input_angle_max = 0.4
         self.index = 0
-        self.rate = rospy.Rate(100)
+        self.rate = rospy.Rate(50)
         self.nrofcycles = 10
         self.cycles1 = 100
         self.cycles2 = 200
@@ -85,7 +86,7 @@ class Ident(object):
         self.measuring = True
 
 
-        for x in range(0, 500):
+        for x in range(0, 100):
            #print self.input_cmd
            self.send_input(self.input_cmd)
            self.rate.sleep()
@@ -95,20 +96,20 @@ class Ident(object):
 
         print 'go higher'
         self.input_cmd.linear.z = self.input_cmd_max
-        for x in range(0, 2000):
+        for x in range(0, 300):
            self.send_input(self.input_cmd)
            self.rate.sleep()
 
         print 'stop'
         self.input_cmd = Twist()
-        for x in range(0, 500):
+        for x in range(0, 300):
            self.send_input(self.input_cmd)
            self.rate.sleep()
 
         print 'move forward'
-        self.input_cmd.linear.x = self.input_cmd_max
+        self.input_cmd.linear.x = self.input_angle_max
         self.input_cmd.linear.z = 0.
-        for x in range(0, 500):
+        for x in range(0, 200):
            self.send_input(self.input_cmd)
            self.rate.sleep()
 
@@ -181,6 +182,7 @@ class Ident(object):
         '''
         #flag = 0
         flag = np.uint8(self.VERTICAL_VEL|self.HORIZONTAL_ANGLE|self.YAW_RATE|self.HORIZONTAL_GROUND|self.STABLE_ENABLE)
+        print flag
 
         cmd_dji = Joy()
         cmd_dji.header.frame_id = "world_rot"
