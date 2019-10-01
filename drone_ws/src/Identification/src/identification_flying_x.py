@@ -22,12 +22,16 @@ class Ident(object):
         self.index = 0
         Ts = 0.02
         self.rate = rospy.Rate(1/Ts)
-        nrofcycles = 10
+        nrofcycles = 5
         
-        self.input = ([self.input_angle_max for i in range(0,40)] + 
+        self.input = ([self.input_angle_max for i in range(0,80)] + 
+								[-self.input_angle_max for i in range(0,160)] +
+								[self.input_angle_max for i in range(0,160)] +
+								[-self.input_angle_max for i in range(0,80)] +
+								[self.input_angle_max for i in range(0,160)] + 
 								[-self.input_angle_max for i in range(0,80)] +
 								[self.input_angle_max for i in range(0,80)] +
-								[-self.input_angle_max for i in range(0,40)])
+								[-self.input_angle_max for i in range(0,160)])
         print 'len self.input', len(self.input)
         self.input = self.input*nrofcycles
         self.span = len(self.input)
@@ -171,7 +175,7 @@ class Ident(object):
         input_cmd: Twist()
         '''
         #flag = 0
-        flag = np.uint8(self.VERTICAL_VEL|self.HORIZONTAL_ANGLE|self.YAW_RATE|self.HORIZONTAL_GROUND|self.STABLE_ENABLE)
+        flag = np.uint8(self.VERTICAL_VEL|self.HORIZONTAL_ANGLE|self.YAW_RATE|self.HORIZONTAL_BODY|self.STABLE_ENABLE)
 
         cmd_dji = Joy()
         cmd_dji.header.frame_id = "world_rot"

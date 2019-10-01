@@ -22,12 +22,16 @@ class Ident(object):
         self.index = 0
         Ts = 0.02
         self.rate = rospy.Rate(1/Ts)
-        nrofcycles = 10
+        nrofcycles = 5
         
         self.input = ([self.input_max for i in range(0,40)] + 
 								[-self.input_max for i in range(0,80)] +
 								[self.input_max for i in range(0,80)] +
-								[-self.input_max for i in range(0,40)])
+								[-self.input_max for i in range(0,40)] +
+								[self.input_max for i in range(0,80)] + 
+								[-self.input_max for i in range(0,40)] +
+								[self.input_max for i in range(0,40)] +
+								[-self.input_max for i in range(0,80)])
         print 'len self.input', len(self.input)
         self.input = self.input*nrofcycles
         self.span = len(self.input)
@@ -35,6 +39,7 @@ class Ident(object):
         self.output_x = np.zeros(self.span*2)
         self.output_y = np.zeros(self.span*2)
         self.output_z = np.zeros(self.span*2)
+        self.output_yaw = np.zeros(self.span*2)
         self.time = np.zeros(self.span*2)
         self.input_cmd = Twist()
         self.measuring = False
@@ -64,7 +69,7 @@ class Ident(object):
         
         rospy.Subscriber('demo', Empty, self.flying)
         rospy.Subscriber(
-            'gps_localization/pose_rot', PoseMeas, self.update_pose)
+            'gps_localization/pose', PoseMeas, self.update_pose)
 
     def start(self):
  
@@ -123,19 +128,22 @@ class Ident(object):
         meas['output_x'] = self.output_x
         meas['output_y'] = self.output_y
         meas['output_z'] = self.output_z
+        meas['output_yaw'] = self.output_yaw
         meas['time'] = self.time
         print 'identification experiment terminated'
 
-        io.savemat('../identification_x.mat', meas)
+        io.savemat('../identification_yaw.mat', meas)
         print 'data stored'
 
     def update_pose(self, meas):
         if self.measuring:
             print 'measuring', self.index
+            print meas.yaw
             self.input_rec[self.index] = self.input_cmd.linear.x
             self.output_x[self.index] = meas.meas_world.pose.position.x
             self.output_y[self.index] = meas.meas_world.pose.position.y
             self.output_z[self.index] = meas.meas_world.pose.position.z
+            self.output_yaw[self.index] = meas.yaw
             self.time[self.index] = meas.meas_world.header.stamp.to_sec()
             self.index += 1
 
