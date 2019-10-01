@@ -2,10 +2,11 @@
 
 
 from geometry_msgs.msg import (PointStamped, PoseStamped, TwistStamped,
-                               TransformStamped, Point)
+                               TransformStamped, Point, QuaternionStamped,
+                               Quaternion)
 from sensor_msgs.msg import Joy
 from std_msgs.msg import Empty
-from std_msgs.msg import String
+from std_msgs.msg import String, Int16
 from gps_localization.msg import PoseMeas
 
 from dji_sdk.srv import SetLocalPosRef
@@ -47,16 +48,19 @@ class GpsLocalization(object):
 
         self.pos_update = rospy.Publisher(
             'gps_localization/pose', PoseMeas, queue_size=1)
+        self.pos_update_rot = rospy.Publisher(
+            'gps_localization/pose_rot', PoseMeas, queue_size=1)
         self.ready = rospy.Publisher(
             'gps_localization/ready', Empty, queue_size=1)
 
-        rospy.Subscriber('dji_sdk/local_position', PointStamped, self.get_pose_gps)
+        rospy.Subscriber('dji_sdk/local_position', PointStamped, self.get_position_gps)
+        rospy.Subscriber('dji_sdk/attitude', QuaternionStamped, self.get_orientation)
 
     def start(self):
         '''
         Starts running of localization node.
         '''
-        print 'START'
+
         self.calibrate()
 
         self.init_transforms()
@@ -96,10 +100,9 @@ class GpsLocalization(object):
         self.tf_d_in_w = TransformStamped()
         self.tf_d_in_w.header.frame_id = "world"
         self.tf_d_in_w.child_frame_id = "drone"
-        self.tf_d_in_w.transform.rotation.w = 1.        
 
         # Wait for first gps coordinate
-        while not self.pose_d_in_w:
+        while self.pose_d_in_w == PoseStamped():
             rospy.sleep(0.1)
         self.tf_d_in_w = self.pose_to_tf(self.pose_d_in_w, "drone")
         self.broadc.sendTransform(self.tf_d_in_w)
@@ -109,30 +112,30 @@ class GpsLocalization(object):
         print green('---- GPS Localization running ----')
 
 
-    def get_pose_gps(self, gps_coord):
+    def get_position_gps(self, gps_coord):
         '''Returns PoseStamped of the i'th object in self.tracked_objects.
         Pose is expressed in gps reference frame.
 
         gps_coord: PointStamped()
         '''
         # READ GPS DATA
-
         self.pose_d_in_w.header.stamp = rospy.Time.now()
         self.pose_d_in_w.pose.position = gps_coord.point
-        #pose_t_in_v.pose.or	ientation.x = quat[0]
-        #pose_t_in_v.pose.orientation.y = quat[1]
-        #pose_t_in_v.pose.orientation.z = quat[2]
-        self.pose_d_in_w.pose.orientation.w = 1.
 
         if not self.init:
         	self.publish_pose_est()
+
+    def get_orientation(self, quat):
+        '''Get yaw. Broadcast new tf.
+        '''
+        self.pose_d_in_w.header.stamp = quat.header.stamp
+        self.pose_d_in_w.pose.orientation = quat.quaternion   	
 
 
     def publish_pose_est(self):
         '''Publishes message that calibration is completed. Starts publishing
         pose measurements.
         '''
-
         self.tf_d_in_w = self.pose_to_tf(self.pose_d_in_w, "drone")
 
         self.broadc.sendTransform(self.tf_d_in_w)
@@ -157,10 +160,10 @@ class GpsLocalization(object):
 
         # - Yaw only (roll and pitch 0.0) to quaternions.
         quat = tf.transformations.quaternion_from_euler(0., 0., yaw)
-        self.tf_r_in_w.transform.rotation.x = quat[0]
-        self.tf_r_in_w.transform.rotation.y = quat[1]
-        self.tf_r_in_w.transform.rotation.z = quat[2]
-        self.tf_r_in_w.transform.rotation.w = quat[3]
+        self.tf_r_in_w.transform.rotation = Quaternion(x=quat[0],
+                                                       y=quat[1],
+                                                       z=quat[2],
+                                                       w=quat[3])
         self.tf_r_in_w.header.stamp = rospy.Time.now()
         self.broadc.sendTransform(self.tf_r_in_w)
 
@@ -177,7 +180,11 @@ class GpsLocalization(object):
 
         # Publish pose of drone in world frame as well as yaw angle.
         data = PoseMeas(meas_world=self.pose_d_in_w, yaw=yaw)
+        pose_d_in_r = self.transform_pose(self.pose_d_in_w, "world",
+                                          "world_rot")
+        data_rot = PoseMeas(meas_world=pose_d_in_r, yaw=yaw)
 
+        self.pos_update_rot.publish(data_rot)
         self.pos_update.publish(data)
 
     def get_euler_angles(self, transf):

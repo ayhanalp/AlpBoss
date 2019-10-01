@@ -18,25 +18,24 @@ class Ident(object):
         """
         """
         rospy.init_node('identification')
-        self.input_cmd_max = 3
         self.input_angle_max = 0.4
         self.index = 0
         Ts = 0.02
         self.rate = rospy.Rate(1/Ts)
-
+        nrofcycles = 2
         
-        self.input = ([self.input_angle_max for i in range(0,500)] + 
-								[-self.input_angle_max for i in range(0,1000)] +
-								[self.input_angle_max for i in range(0,1000)] +
-								[-self.input_angle_max for i in range(0,500)])
-        self.input = self.input*10
-        print self.input[0:20]
-        span = len(self.input)
-
-        self.output_x = np.zeros(span)
-        self.output_y = np.zeros(span)
-        self.output_z = np.zeros(span)
-        self.time = np.zeros(span)
+        self.input = ([self.input_angle_max for i in range(0,100)] + 
+								[-self.input_angle_max for i in range(0,200)] +
+								[self.input_angle_max for i in range(0,200)] +
+								[-self.input_angle_max for i in range(0,100)])
+        print 'len self.input', len(self.input)
+        self.input = self.input*nrofcycles
+        self.span = len(self.input)
+        self.input_rec = np.zeros(self.span*50)
+        self.output_x = np.zeros(self.span*50)
+        self.output_y = np.zeros(self.span*50)
+        self.output_z = np.zeros(self.span*50)
+        self.time = np.zeros(self.span*50)
         self.input_cmd = Twist()
         self.measuring = False
 
@@ -65,7 +64,7 @@ class Ident(object):
         
         rospy.Subscriber('demo', Empty, self.flying)
         rospy.Subscriber(
-            'gps_localization/pose', PoseMeas, self.update_pose)
+            'gps_localization/pose_rot', PoseMeas, self.update_pose)
 
     def start(self):
  
@@ -73,7 +72,7 @@ class Ident(object):
         rospy.spin()
 
     def flying(self, empty):
-        print 'identification started'
+        print 'Identification experiment started'
         
         # Request control authority from the sdk.
         self.get_control_authority()
@@ -103,8 +102,9 @@ class Ident(object):
         self.measuring = True
 
         print 'start measurements'
-        for i in range(0,len(self.input)):
+        for i in range(0,self.span-1):
            self.input_cmd.linear.x = self.input[i]
+           #self.input_cmd.angular.z = self.input[i]
            #print self.input[i]
            self.send_input(self.input_cmd)
            self.rate.sleep()
@@ -119,7 +119,7 @@ class Ident(object):
            self.rate.sleep()
 
         self.land()
-
+        print self.index
         # STORE THE DATA
         meas = {}
         meas['input'] = self.input
@@ -134,8 +134,8 @@ class Ident(object):
 
     def update_pose(self, meas):
         if self.measuring:
-
-            #self.input[self.index] = self.input_cmd.linear.x
+            print 'measuring', self.index
+            self.input_rec[self.index] = self.input_cmd.linear.x
             self.output_x[self.index] = meas.meas_world.pose.position.x
             self.output_y[self.index] = meas.meas_world.pose.position.y
             self.output_z[self.index] = meas.meas_world.pose.position.z
@@ -179,8 +179,8 @@ class Ident(object):
         cmd_dji = Joy()
         cmd_dji.header.frame_id = "world_rot"
         cmd_dji.header.stamp = rospy.Time.now()
-        cmd_dji.axes = [input_cmd.linear.x,
-                             input_cmd.linear.y,
+        cmd_dji.axes = [-input_cmd.linear.y,
+                             input_cmd.linear.x,
                              input_cmd.linear.z,
                              input_cmd.angular.z,
                              flag]
