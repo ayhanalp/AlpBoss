@@ -23,6 +23,13 @@ from fabulous.color import (highlight_red, highlight_green, highlight_blue,
                             green, yellow, highlight_yellow)
 
 
+# TODO: 
+#  - flight status
+#  - control authority service call
+#  - copy controls from identification
+#  - model parameters for dji
+
+
 class Controller(object):
 
     ############################
@@ -98,7 +105,6 @@ class Controller(object):
     def _init_topics(self):
         '''Initializes rostopic Publishers and Subscribers.
         '''
-        # REPLACE BY TOPIC FOR CMDS DJI
         self.cmd_vel_dji = rospy.Publisher(
             '/dji_sdk/flight_control_setpoint_generic',
             Joy, queue_size=1)
@@ -130,6 +136,8 @@ class Controller(object):
         rospy.Subscriber('fsm/state', String, self.switch_state)
         rospy.Subscriber(
             'localization/pose', PoseMeas, self.new_measurement)
+        rospy.Subscriber(
+            '/dji_sdk/flight_status', UInt8, self.get_flight_status)
 
     def _init_params(self):
         '''Initializes (reads and sets) externally configurable parameters
@@ -744,41 +752,16 @@ class Controller(object):
             print highlight_red('Service call failed: %s') % e
             return
 
-    def transform_twist(self, twist, _from, _to):
-        '''Transforms twist (geometry_msgs/Twist) from frame "_from" to
-        frame "_to".
-        Arguments:
-            - _from, _to = string, name of frame
+
+
+    def get_flight_status(self, flight_status):
+        '''Checks whether the drone is standing on the ground or flying and
+        changes the self.airborne variable accordingly.
         '''
-        cmd_vel = PointStamped()
-        cmd_vel.header = twist.header
-        cmd_vel.point = twist.twist.linear
-        cmd_vel_rotated = self.transform_point(cmd_vel, _from, _to)
-
-        twist_rotated = TwistStamped()
-        twist_rotated.header.stamp = twist.header.stamp
-        twist_rotated.twist.linear = cmd_vel_rotated.point
-
-        return twist_rotated
-
-    def transform_point(self, point, _from, _to):
-        '''Transforms point from _from frame to _to frame.
-        '''
-        transform = self.tfBuffer.lookup_transform(
-            _to, _from, rospy.Time(0), rospy.Duration(0.1))
-        point_transformed = tf2_geom.do_transform_point(point, transform)
-
-        return point_transformed
-
-    # REPLACE WITH DJI FLYING STATE
-    # def bebop_flying_state(self, flying_state):
-    #     '''Checks whether the drone is standing on the ground or flying and
-    #     changes the self.airborne variable accordingly.
-    #     '''
-    #     if flying_state.state == 0:
-    #         self.airborne = False
-    #     elif flying_state.state == 2:
-    #         self.airborne = True
+        if flight_status.data == 1:
+            self.airborne = False
+        elif flight_status.data == 3:
+            self.airborne = True
 
     def diff_interp_traj(self):
         '''Differentiate and interpolate obtained trajectory to obtain
@@ -890,6 +873,32 @@ class Controller(object):
             z_vec = [z_vec[0] for i in range(pad)] + z_vec
 
         return x_vec, y_vec, z_vec
+
+    def transform_twist(self, twist, _from, _to):
+        '''Transforms twist (geometry_msgs/Twist) from frame "_from" to
+        frame "_to".
+        Arguments:
+            - _from, _to = string, name of frame
+        '''
+        cmd_vel = PointStamped()
+        cmd_vel.header = twist.header
+        cmd_vel.point = twist.twist.linear
+        cmd_vel_rotated = self.transform_point(cmd_vel, _from, _to)
+
+        twist_rotated = TwistStamped()
+        twist_rotated.header.stamp = twist.header.stamp
+        twist_rotated.twist.linear = cmd_vel_rotated.point
+
+        return twist_rotated
+
+    def transform_point(self, point, _from, _to):
+        '''Transforms point from _from frame to _to frame.
+        '''
+        transform = self.tfBuffer.lookup_transform(
+            _to, _from, rospy.Time(0), rospy.Duration(0.1))
+        point_transformed = tf2_geom.do_transform_point(point, transform)
+
+        return point_transformed
 
     #######################################
     # Functions for plotting Rviz markers #
