@@ -25,10 +25,10 @@ set(0, 'DefaultLineLineWidth', 1);
 %   model = identify("data/data_mat_file",'axis','axis symbol',Ts,f0,Fc,options,colors);
 % -----------------------------------------------------------------
 % cd 'Code/AlpBoss/Matlab/identification and pid'
-%xmodel = identify("data/identification_x","x","x",0.02,0.5,0.9,options,colors);
+% xmodel = identify("data/identification_x","x","x",0.02,0.5,0.9,options,colors);
 % xmodel_slow = identify("data/identification_x_cut","x","x",0.02,0.53,0.6,options,colors);
-%ymodel = identify("data/identification_y","y","y",0.02,0.53,0.6,options,colors);
-zmodel = identify("data/identification_z","z","z",0.02,0.3,0.6,options,colors);
+% ymodel = identify("data/identification_y","y","y",0.02,0.53,0.6,options,colors);
+zmodel = identify("data/identification_z","z","z",0.02,0.5,0.6,options,colors);
 % yawmodel = identify("data/vel_identification_yaw_preprocessed","yaw",char(952),0.02,0.3,1.,options,colors);
 
 % IMPORTANT NOTE: cutoff freq for x and y is based on crossover frequency (iteratively).
@@ -135,6 +135,7 @@ end
 % Empirical frequency response
 vel_fft = fft(velocity);
 pos_fft = fft(output);
+input(length(input)) = 0;
 input_fft = fft(input);
 data.FRF_emp = vel_fft./input_fft;
 data.FRF_emp_pos = frd(pos_fft./input_fft, 2*pi*f);
