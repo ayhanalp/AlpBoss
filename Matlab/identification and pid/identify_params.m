@@ -1,6 +1,6 @@
 % Identification of LTI models for x, y, z, yaw motion.
 clear variables
-% close all
+close all
 clc
 format long
 fprintf('============ Start identification ============== \n')
@@ -8,10 +8,10 @@ fprintf('============ Start identification ============== \n')
 
 %% Settings & Execution
 options.all_figures = false;
-options.select_figures = false;
+options.select_figures = true;
 % options.fig_sel = (1:800);
 % options.fig_sel = (1:800);
-options.fig_sel = (1450:2200);
+options.fig_sel = (1:1000);
 options.prints = false;
 
 % colors & linewidth for figures
@@ -24,10 +24,11 @@ set(0, 'DefaultLineLineWidth', 1);
 % SYNTAX: 
 %   model = identify("data/data_mat_file",'axis','axis symbol',Ts,f0,Fc,options,colors);
 % -----------------------------------------------------------------
-xmodel = identify("data/angle_identification_x","x","x",0.02,0.53,0.6,options,colors);
+% cd 'Code/AlpBoss/Matlab/identification and pid'
+% xmodel = identify("data/identification_x","x","x",0.02,0.5,0.9,options,colors);
 % xmodel_slow = identify("data/identification_x_cut","x","x",0.02,0.53,0.6,options,colors);
-ymodel = identify("data/angle_identification_y","y","y",0.02,0.53,0.6,options,colors);
-zmodel = identify("data/vel_identification_z","z","z",0.02,0.3,0.6,options,colors);
+% ymodel = identify("data/identification_y","y","y",0.02,0.53,0.6,options,colors);
+zmodel = identify("data/identification_z","z","z",0.02,0.5,0.6,options,colors);
 % yawmodel = identify("data/vel_identification_yaw_preprocessed","yaw",char(952),0.02,0.3,1.,options,colors);
 
 % IMPORTANT NOTE: cutoff freq for x and y is based on crossover frequency (iteratively).
@@ -92,9 +93,10 @@ data = load(data_file);
 
 % Cutoff useful data
 % first_index = find(input~=0, 1);
-data.input = data.input(1:end-100)';
+data.time = data.time';
+data.input = data.input';
 data.output = eval(strcat('data.output_', ax));
-data.output = data.output(1:end-100)'-data.output(1);
+data.output = data.output'-data.output(1);
 input  = data.input;
 output = data.output;
 
@@ -109,7 +111,7 @@ data.t = t;
 data.f = f;
 
 % Differentiation of position
-velocity = gradient(output)/Ts;
+velocity = gradient(output)./gradient(data.time);
 data.velocity = velocity;
 
 
@@ -133,6 +135,7 @@ end
 % Empirical frequency response
 vel_fft = fft(velocity);
 pos_fft = fft(output);
+input(length(input)) = 0;
 input_fft = fft(input);
 data.FRF_emp = vel_fft./input_fft;
 data.FRF_emp_pos = frd(pos_fft./input_fft, 2*pi*f);
@@ -503,7 +506,7 @@ FRF = squeeze(freqresp(transff.discr,2*pi*f));
 data.FRF_vel = FRF;
 
 % simulation
-v = lsim(transff.discr,input,t);
+v = lsim(transff.discr,input,   t);
 
 if options.prints
    fprintf(strcat("\n* Discrete time velocity transfer function ",axplot,' direction:\n'))
