@@ -2,10 +2,11 @@
 
 from geometry_msgs.msg import (
     Twist, PoseStamped, Point, PointStamped, TwistStamped)
-from localization.msg import PoseMeas
-from std_msgs.msg import String, Empty, Bool
-from drone_msgs.msg import (Ardrone3PilotingStateFlyingStateChanged,
-                            CommonCommonStateBatteryStateChanged)
+from sensor_msgs.msg import BatteryState
+from std_msgs.msg import String, Empty, Bool, UInt8
+
+from gps_localization.msg import PoseMeas
+
 
 from drone_demo.srv import GetPoseEst, GetPoseEstResponse, GetPoseEstRequest
 
@@ -74,12 +75,10 @@ class Demo(object):
 
 
         # REPLACE WITH AIRBORNE & BATTERY DETECTION DJI DRONE
-        # rospy.Subscriber(
-        #     '/bebop/states/ardrone3/PilotingState/FlyingStateChanged',
-        #     Ardrone3PilotingStateFlyingStateChanged, self.flying_state)
-        # rospy.Subscriber(
-        #     '/bebop/states/common/CommonState/BatteryStateChanged',
-        #     CommonCommonStateBatteryStateChanged, self.battery_state)
+        rospy.Subscriber(
+            '/dji_sdk/flight_status', UInt8, self.get_flight_status)
+        rospy.Subscriber(
+            '/dji_sdk/battery_state',BatteryState, self.get_battery_state)
 
         self._get_pose_service = None
 
@@ -269,27 +268,26 @@ class Demo(object):
     #     elif not trackpad_pressed.data and self.trackpad_held:
     #         self.trackpad_held = False
 
-    # REPLACE WITH DJI LANDED INFO
-    # def flying_state(self, flying_state):
-    #     '''Checks whether the drone is standing on the ground or flying and
-    #     changes the self.airborne variable accordingly.
-    #     '''
-    #     if flying_state.state == 2:
-    #         self.airborne = True
-    #     elif flying_state.state == 0:
-    #         self.airborne = False
+    def get_flight_status(self, flight_status):
+        '''Checks whether the drone is standing on the ground or flying and
+        changes the self.airborne variable accordingly.
+        '''
+        if flight_status.data == 1:
+            self.airborne = False
+        elif flight_status.data == 3:
+            self.airborne = True
 
 
     # REPLACE WITH DJI BATTERY STATE INFO (dji sdk probably)
-    # def battery_state(self, battery):
-    #     '''Checks the discharge state of the battery and gives a warning
-    #     when the battery voltage gets low.
-    #     '''
-    #     if ((battery.percent <= 20) and ((battery.percent % 5) == 0)):
-    #         print 'battery.percent', battery.percent, (battery.percent % 5)
-    #         print highlight_yellow(
-    #                     ' Battery voltage low -- ', battery.percent,
-    #                     '% left, switch to a freshly charged battery! ')
+    def get_battery_state(self, battery):
+        '''Checks the discharge state of the battery and gives a warning
+        when the battery voltage gets low.
+        '''
+        if ((battery.percentage <= 0.2) and ((battery.percentage % 5) == 0)):
+            print 'battery.percent', battery.percentage, (battery.percentage % 5)
+            print highlight_yellow(
+                        ' Battery voltage low -- ', battery.percentage,
+                        '% left, switch to a freshly charged battery! ')
 
     def ctrl_state_finish(self, empty):
         '''Checks whether controller has finished the current state.

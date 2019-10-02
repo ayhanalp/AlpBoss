@@ -3,13 +3,13 @@
 from geometry_msgs.msg import (Twist, TwistStamped, Point, PointStamped,
                                Pose, PoseStamped)
 from sensor_msgs.msg import Joy
-from std_msgs.msg import Bool, Empty, String
+from std_msgs.msg import Bool, Empty, String, UInt8
 from visualization_msgs.msg import Marker, MarkerArray
 from drone_demo.msg import Trigger, Trajectories, Obstacle
-from GPS_localization.msg import PoseMeas
+from gps_localization.msg import PoseMeas
 
 from drone_demo.srv import GetPoseEst, ConfigMotionplanner
-from dji_sdk.srv import DroneTaskControl
+from dji_sdk.srv import DroneTaskControl, SDKControlAuthority
 
 import rospy
 import numpy as np
@@ -22,12 +22,16 @@ import tf2_geometry_msgs as tf2_geom
 from fabulous.color import (highlight_red, highlight_green, highlight_blue,
                             green, yellow, highlight_yellow)
 
+# Currently working on: 
+
 
 # TODO: 
-#  - flight status
-#  - control authority service call
-#  - copy controls from identification
+#  - flight status CHECK
+#  - control authority service call CHECK
+#  - copy controls from identification CHECK
+#  - safety brake CHECK
 #  - model parameters for dji
+#  - replace trackpad with topic for rqt
 
 
 class Controller(object):
@@ -50,12 +54,14 @@ class Controller(object):
                            "follow path": self.follow_traj,
                            "reset PID": self.reset_pid_gains}
 
+        self._init_constants()
         self._init_params()
         self._init_variables()
         self._marker_setup()
 
         self._init_vel_model()
         self._init_topics()
+        self._request_ctrl_authority()
 
         self.tfBuffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tfBuffer)
@@ -139,6 +145,28 @@ class Controller(object):
         rospy.Subscriber(
             '/dji_sdk/flight_status', UInt8, self.get_flight_status)
 
+    def _init_constants(self):
+        '''Initialize non-configurable values.
+        '''
+        # Controller flag settings (dji sdk)
+        self.VERTICAL_VEL = 0x00
+        self.VERTICAL_POS = 0x10
+        self.VERTICAL_THRUST = 0x20
+
+        self.HORIZONTAL_ANGLE = 0x00
+        self.HORIZONTAL_VELOCITY = 0x40
+        self.HORIZONTAL_POSITION = 0x80
+        self.HORIZONTAL_ANGULAR_RATE = 0xC0
+
+        self.YAW_ANGLE = 0x00
+        self.YAW_RATE = 0x08
+
+        self.HORIZONTAL_GROUND = 0x00
+        self.HORIZONTAL_BODY = 0x02
+
+        self.STABLE_DISABLE = 0x00
+        self.STABLE_ENABLE = 0x01
+
     def _init_params(self):
         '''Initializes (reads and sets) externally configurable parameters
         (rosparams).
@@ -219,6 +247,22 @@ class Controller(object):
         self.ff_cmd = Twist()
         self.drone_vel_est = Point()
         self.drone_pose_est = Pose()
+
+    def _request_ctrl_authority(self):
+        '''Service call to dji sdk to obtain control authority.
+        '''
+        rospy.wait_for_service("/dji_sdk/sdk_control_authority")
+        try:
+            ctrl_auth = rospy.ServiceProxy(
+                "/dji_sdk/sdk_control_authority", SDKControlAuthority)
+            ctrl_success = ctrl_auth(1)
+            print 'ctrl_success', ctrl_success
+        except rospy.ServiceException, e:
+            rospy.logerr('Ctrl authority service call failed: %s' % e)
+            print 'Ctrl authority service call failed: %s' % e
+            ctrl_success = False
+        if ctrl_success:
+            print yellow('---- Control authority obtained ----')
 
     ##################
     # Main functions #
@@ -572,11 +616,20 @@ class Controller(object):
             print yellow('==== Target Reached! ====')
             print yellow('=========================')
 
-    def rotate_vel_cmd(self, vel):
-        '''Transforms the velocity commands from the global world frame to the
-        rotated world frame world_rot.
+    def safety_brake(self):
+        '''Brake as emergency measure: Bebop brakes automatically when
+            /bebop/cmd_vel topic receives all zeros.
         '''
-        self.ff_velocity = self.transform_twist(vel, "world", "world_rot")
+        self.full_cmd.twist = Twist()
+        self.send_input(self.full_cmd.twist)
+
+    def repeat_safety_brake(self):
+        '''More permanent emergency measure: keep safety braking until new task
+        (eg. land) is given.
+        '''
+        while not (rospy.is_shutdown() or self.state_killed):
+            self.safety_brake()
+            self.rate.sleep()
 
     ####################
     # Helper functions #
@@ -592,8 +645,11 @@ class Controller(object):
         self.full_cmd.header.stamp = rospy.Time.now()
         self.cmd_vel.publish(self.full_cmd.twist)
 
-        flag = UInt8(data=np.uint8(0))  # VERT_VEL, HORI_ATTI_TILT_ANG, YAW_ANG
-        # flag = UInt8(data=np.uint8(8))  # VERT_VEL, HORI_ATTI_TILT_ANG, YAW_RATE
+        flag = np.uint8(self.VERTICAL_VEL|
+                        self.HORIZONTAL_ANGLE|
+                        self.YAW_RATE|
+                        self.HORIZONTAL_BODY|
+                        self.STABLE_ENABLE)
 
         full_cmd_dji = Joy()
         full_cmd_dji.header = self.full_cmd.header
@@ -604,8 +660,13 @@ class Controller(object):
                              flag]
 
         self.cmd_vel_dji.publish(full_cmd_dji)
-        
 
+    def rotate_vel_cmd(self, vel):
+        '''Transforms the velocity commands from the global world frame to the
+        rotated world frame world_rot.
+        '''
+        self.ff_velocity = self.transform_twist(vel, "world", "world_rot")
+        
     def convert_vel_cmd(self):
         '''Converts a velocity command to a desired input angle according to
         the state space representation of the inverse velocity model.
@@ -751,8 +812,6 @@ class Controller(object):
         except rospy.ServiceException, e:
             print highlight_red('Service call failed: %s') % e
             return
-
-
 
     def get_flight_status(self, flight_status):
         '''Checks whether the drone is standing on the ground or flying and

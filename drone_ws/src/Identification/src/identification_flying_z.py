@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from std_msgs.msg import Empty, UInt8
+from std_msgs.msg import Empty
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Twist, Pose, PoseStamped
 from gps_localization.msg import PoseMeas
@@ -179,8 +179,11 @@ class Ident(object):
         input_cmd: Twist()
         '''
         #flag = 0
-        flag = np.uint8(self.VERTICAL_VEL|self.HORIZONTAL_ANGLE|self.YAW_RATE|self.HORIZONTAL_BODY|self.STABLE_ENABLE)
-
+        flag = np.uint8(self.VERTICAL_VEL|
+                        self.HORIZONTAL_ANGLE|
+                        self.YAW_RATE|
+                        self.HORIZONTAL_BODY|
+                        self.STABLE_ENABLE)
         cmd_dji = Joy()
         cmd_dji.header.frame_id = "world_rot"
         cmd_dji.header.stamp = rospy.Time.now()
