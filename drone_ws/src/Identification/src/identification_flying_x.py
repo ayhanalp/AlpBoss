@@ -22,20 +22,24 @@ class Ident(object):
         self.index = 0
         Ts = 0.02
         self.rate = rospy.Rate(1/Ts)
-        nrofcycles = 2
+        nrofcycles = 5
         
-        self.input = ([self.input_angle_max for i in range(0,100)] + 
-								[-self.input_angle_max for i in range(0,200)] +
-								[self.input_angle_max for i in range(0,200)] +
-								[-self.input_angle_max for i in range(0,100)])
+        self.input = ([self.input_angle_max for i in range(0,80)] + 
+								[-self.input_angle_max for i in range(0,160)] +
+								[self.input_angle_max for i in range(0,160)] +
+								[-self.input_angle_max for i in range(0,80)] +
+								[self.input_angle_max for i in range(0,160)] + 
+								[-self.input_angle_max for i in range(0,80)] +
+								[self.input_angle_max for i in range(0,80)] +
+								[-self.input_angle_max for i in range(0,160)])
         print 'len self.input', len(self.input)
         self.input = self.input*nrofcycles
         self.span = len(self.input)
-        self.input_rec = np.zeros(self.span*50)
-        self.output_x = np.zeros(self.span*50)
-        self.output_y = np.zeros(self.span*50)
-        self.output_z = np.zeros(self.span*50)
-        self.time = np.zeros(self.span*50)
+        self.input_rec = np.zeros(self.span*2)
+        self.output_x = np.zeros(self.span*2)
+        self.output_y = np.zeros(self.span*2)
+        self.output_z = np.zeros(self.span*2)
+        self.time = np.zeros(self.span*2)
         self.input_cmd = Twist()
         self.measuring = False
 
@@ -87,7 +91,6 @@ class Ident(object):
         self.input_cmd.linear.x = 0.0
         self.input_cmd.linear.y = 0.0
         self.input_cmd.linear.z = 0.0
-        self.measuring = True
 
 
         for x in range(0, 100):
@@ -102,10 +105,8 @@ class Ident(object):
         self.measuring = True
 
         print 'start measurements'
-        for i in range(0,self.span-1):
+        for i in range(0,self.span):
            self.input_cmd.linear.x = self.input[i]
-           #self.input_cmd.angular.z = self.input[i]
-           #print self.input[i]
            self.send_input(self.input_cmd)
            self.rate.sleep()
         
@@ -122,7 +123,7 @@ class Ident(object):
         print self.index
         # STORE THE DATA
         meas = {}
-        meas['input'] = self.input
+        meas['input'] = self.input_rec
         meas['output_x'] = self.output_x
         meas['output_y'] = self.output_y
         meas['output_z'] = self.output_z
@@ -174,7 +175,7 @@ class Ident(object):
         input_cmd: Twist()
         '''
         #flag = 0
-        flag = np.uint8(self.VERTICAL_VEL|self.HORIZONTAL_ANGLE|self.YAW_RATE|self.HORIZONTAL_GROUND|self.STABLE_ENABLE)
+        flag = np.uint8(self.VERTICAL_VEL|self.HORIZONTAL_ANGLE|self.YAW_RATE|self.HORIZONTAL_BODY|self.STABLE_ENABLE)
 
         cmd_dji = Joy()
         cmd_dji.header.frame_id = "world_rot"

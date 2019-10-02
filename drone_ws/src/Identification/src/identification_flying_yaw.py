@@ -18,10 +18,10 @@ class Ident(object):
         """
         """
         rospy.init_node('identification')
-        self.input_max = 2.
+        self.input_max = 1.5
         self.index = 0
         Ts = 0.02
-        self.rate = rospy.Rate(1./Ts)
+        self.rate = rospy.Rate(1/Ts)
         nrofcycles = 5
         
         self.input = ([self.input_max for i in range(0,40)] + 
@@ -35,11 +35,12 @@ class Ident(object):
         print 'len self.input', len(self.input)
         self.input = self.input*nrofcycles
         self.span = len(self.input)
-        self.input_rec = np.zeros(self.span*50)
-        self.output_x = np.zeros(self.span*50)
-        self.output_y = np.zeros(self.span*50)
-        self.output_z = np.zeros(self.span*50)
-        self.time = np.zeros(self.span*50)
+        self.input_rec = np.zeros(self.span*2)
+        self.output_x = np.zeros(self.span*2)
+        self.output_y = np.zeros(self.span*2)
+        self.output_z = np.zeros(self.span*2)
+        self.output_yaw = np.zeros(self.span*2)
+        self.time = np.zeros(self.span*2)
         self.input_cmd = Twist()
         self.measuring = False
 
@@ -68,7 +69,7 @@ class Ident(object):
         
         rospy.Subscriber('demo', Empty, self.flying)
         rospy.Subscriber(
-            'gps_localization/pose_rot', PoseMeas, self.update_pose)
+            'gps_localization/pose', PoseMeas, self.update_pose)
 
     def start(self):
  
@@ -85,32 +86,28 @@ class Ident(object):
         self.take_off()
         print 'Taking off, starting experiment in a few seconds'
 
-        rospy.sleep(7)
+        rospy.sleep(5)
         print 'Start!'
-
+        # move back and forth with a pause in between
         self.input_cmd.linear.x = 0.0
         self.input_cmd.linear.y = 0.0
-        self.input_cmd.linear.z = 3.0
+        self.input_cmd.linear.z = 0.0
+
 
         for x in range(0, 100):
            #print self.input_cmd
            self.send_input(self.input_cmd)
            self.rate.sleep()
-        self.input_cmd.linear.z = 0.
-        for x in range(0, 100):
-           #print self.input_cmd
-           self.send_input(self.input_cmd)
-           self.rate.sleep()
 
+        self.send_input(self.input_cmd)
         
 
         # START RECORDING ----------------------------
         self.measuring = True
 
-        print '***************************start measurements'
-        print '*********************************************'
+        print 'start measurements'
         for i in range(0,self.span):
-           self.input_cmd.linear.z = self.input[i]
+           self.input_cmd.angular.z = self.input[i]
            self.send_input(self.input_cmd)
            self.rate.sleep()
         
@@ -127,23 +124,26 @@ class Ident(object):
         print self.index
         # STORE THE DATA
         meas = {}
-        meas['input'] = self.input
+        meas['input'] = self.input_rec
         meas['output_x'] = self.output_x
         meas['output_y'] = self.output_y
         meas['output_z'] = self.output_z
+        meas['output_yaw'] = self.output_yaw
         meas['time'] = self.time
         print 'identification experiment terminated'
 
-        io.savemat('../identification_z.mat', meas)
+        io.savemat('../identification_yaw.mat', meas)
         print 'data stored'
 
     def update_pose(self, meas):
         if self.measuring:
             print 'measuring', self.index
+            print meas.yaw
             self.input_rec[self.index] = self.input_cmd.linear.x
             self.output_x[self.index] = meas.meas_world.pose.position.x
             self.output_y[self.index] = meas.meas_world.pose.position.y
             self.output_z[self.index] = meas.meas_world.pose.position.z
+            self.output_yaw[self.index] = meas.yaw
             self.time[self.index] = meas.meas_world.header.stamp.to_sec()
             self.index += 1
 
@@ -179,7 +179,7 @@ class Ident(object):
         input_cmd: Twist()
         '''
         #flag = 0
-        flag = np.uint8(self.VERTICAL_VEL|self.HORIZONTAL_ANGLE|self.YAW_RATE|self.HORIZONTAL_BODY|self.STABLE_ENABLE)
+        flag = np.uint8(self.VERTICAL_VEL|self.HORIZONTAL_ANGLE|self.YAW_RATE|self.HORIZONTAL_GROUND|self.STABLE_ENABLE)
 
         cmd_dji = Joy()
         cmd_dji.header.frame_id = "world_rot"

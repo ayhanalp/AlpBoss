@@ -1,0 +1,8 @@
+<launch>
+
+  <node name="identification" pkg="identification" type="identification_flying_yaw.py" output="screen"/>
+	
+	
+  <include file="$(find gps_localization)/launch/localization.launch" />
+
+</launch>
