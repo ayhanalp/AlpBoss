@@ -85,19 +85,12 @@ class Ident(object):
         self.take_off()
         print 'Taking off, starting experiment in a few seconds'
 
-        rospy.sleep(5)
-        print 'Start!'
-        # move back and forth with a pause in between
-        self.input_cmd.linear.x = 0.0
-        self.input_cmd.linear.y = 0.0
-        self.input_cmd.linear.z = 0.0
+        rospy.sleep(8)
 
+        self.input_cmd = Twist()
         for x in range(0, 100):
-           #print self.input_cmd
            self.send_input(self.input_cmd)
            self.rate.sleep()
-
-        self.send_input(self.input_cmd)
         
 
         # START RECORDING ----------------------------
@@ -124,7 +117,7 @@ class Ident(object):
         print self.index
         # STORE THE DATA
         meas = {}
-        meas['input'] = self.input
+        meas['input'] = self.input_rec
         meas['output_x'] = self.output_x
         meas['output_y'] = self.output_y
         meas['output_z'] = self.output_z
@@ -137,7 +130,7 @@ class Ident(object):
     def update_pose(self, meas):
         if self.measuring:
             print 'measuring', self.index
-            self.input_rec[self.index] = self.input_cmd.linear.x
+            self.input_rec[self.index] = self.input_cmd.linear.y
             self.output_x[self.index] = meas.meas_world.pose.position.x
             self.output_y[self.index] = meas.meas_world.pose.position.y
             self.output_z[self.index] = meas.meas_world.pose.position.z

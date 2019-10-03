@@ -85,26 +85,17 @@ class Ident(object):
         self.take_off()
         print 'Taking off, starting experiment in a few seconds'
 
-        rospy.sleep(5)
-        print 'Start!'
-        # move back and forth with a pause in between
-        self.input_cmd.linear.x = 0.0
-        self.input_cmd.linear.y = 0.0
-        self.input_cmd.linear.z = 0.0
+        rospy.sleep(8)
 
-
+        self.input_cmd = Twist()
         for x in range(0, 100):
-           #print self.input_cmd
            self.send_input(self.input_cmd)
            self.rate.sleep()
-
-        self.send_input(self.input_cmd)
-        
 
         # START RECORDING ----------------------------
         self.measuring = True
 
-        print 'start measurements'
+        print 'Start measurements'
         for i in range(0,self.span):
            self.input_cmd.linear.x = self.input[i]
            self.send_input(self.input_cmd)
@@ -128,7 +119,7 @@ class Ident(object):
         meas['output_y'] = self.output_y
         meas['output_z'] = self.output_z
         meas['time'] = self.time
-        print 'identification experiment terminated'
+        print 'Identification experiment terminated'
 
         io.savemat('../identification_x.mat', meas)
         print 'data stored'
