@@ -128,6 +128,7 @@ class Ident(object):
         meas['output_x'] = self.output_x
         meas['output_y'] = self.output_y
         meas['output_z'] = self.output_z
+        print self.output_yaw
         meas['output_yaw'] = self.output_yaw
         meas['time'] = self.time
         print 'identification experiment terminated'

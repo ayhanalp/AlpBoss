@@ -34,7 +34,7 @@ class GpsLocalization(object):
         rospy.init_node('gps_localization')
 
         Ts = rospy.get_param('gps_localization/sample_time', 0.02)
-        self.rate = rospy.rate(1./Ts) 
+        self.rate = rospy.Rate(1./Ts) 
 
         self.broadc = tf2_ros.TransformBroadcaster()
         self.stbroadc = tf2_ros.StaticTransformBroadcaster()
@@ -43,7 +43,8 @@ class GpsLocalization(object):
 
         self.pose_d_in_w = PoseStamped()
         self.pose_d_in_w.header.frame_id = "world"
-
+        self.data = PoseMeas()
+        self.data_rot = PoseMeas()
         self.tf_r_in_w_timestamp_old = rospy.Time.now()
         self.tf_d_in_w_timestamp_old = rospy.Time.now()
         #self.sample_time = rospy.get_param(
@@ -69,7 +70,7 @@ class GpsLocalization(object):
         self.init_transforms()
 		
         # Publish pose estimates at a steady rate.
-        while not self.rospy.is_shutdown():
+        while not rospy.is_shutdown():
             self.publish_pose_est()
             self.rate.sleep()
 
@@ -138,8 +139,8 @@ class GpsLocalization(object):
     def publish_pose_est(self):
         '''Publish the latest pose update.
         '''
-        self.pos_update_rot.publish(data_rot)
-        self.pos_update.publish(data)
+        self.pos_update_rot.publish(self.data_rot)
+        self.pos_update.publish(self.data)
 
     def update_pose_est(self):
         '''Publishes message that calibration is completed. Starts publishing
@@ -188,10 +189,10 @@ class GpsLocalization(object):
         self.tf_r_in_w_timestamp_old = tf_r_in_w.header.stamp
 
         # Publish pose of drone in world frame as well as yaw angle.
-        data = PoseMeas(meas_world=self.pose_d_in_w, yaw=yaw)
+        self.data = PoseMeas(meas_world=self.pose_d_in_w, yaw=yaw)
         pose_d_in_r = self.transform_pose(self.pose_d_in_w, "world",
                                           "world_rot")
-        data_rot = PoseMeas(meas_world=pose_d_in_r, yaw=yaw)
+        self.data_rot = PoseMeas(meas_world=pose_d_in_r, yaw=yaw)
 
     def get_euler_angles(self, transf):
         '''
