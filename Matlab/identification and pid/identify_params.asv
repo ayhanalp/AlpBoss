@@ -536,8 +536,8 @@ if options.all_figures
     figure('Name','2nd - filtered - strictly proper - Minimum Phase: Simulation')
     subplot(211)
     hold on
-    plot(data.time, velocity)
-    plot(data.time, velocity_filt)
+    plot(t, velocity)
+    plot(t, velocity_filt)
     plot(t, v)
     legend(strcat('v_{',axplot,',meas}'), strcat('v_{',axplot,',filt}'), strcat('v_{',axplot,',sim}'))
     title('2nd - filtered - strictly proper - Minimum Phase: Simulation vs Measurement')
@@ -591,8 +591,8 @@ if options.all_figures
     figure('Name','Continuous - 2nd - filtered - strictly proper - Minimum Phase: Simulation')
     subplot(211)
     hold on
-    plot(data.time, velocity,'g')
-    plot(data.time, velocity_filt)
+    plot(t, velocity,'g')
+    plot(t, velocity_filt)
     plot(t,xc)
     legend(strcat('v_{',axplot,',meas}'), strcat('v_{',axplot,',filt}'), strcat('v_{',axplot,',sim}'))
     title('2nd - filtered - strictly proper - Minimum Phase: Simulation vs Measurement')
@@ -666,7 +666,7 @@ if options.all_figures
     figure('Name','Integrated, filtered, strictly proper - Simulation')
     subplot(211)
     hold on
-    plot(data.time, output,'g')
+    plot(t, output,'g')
     plot(t, x)
     title('Integrated, filtered, strictly proper - Simulation VS Measurement')
     legend(strcat('pos_{',axplot,',meas}'), strcat('pos_{',axplot,',sim}'))
@@ -691,7 +691,7 @@ if options.select_figures
     subplot(311)
     hold on
 %     plot(t(options.fig_sel), velocity(options.fig_sel), 'Color', colors.blue)
-    plot(data.time(options.fig_sel), data.velocity_filt(options.fig_sel), 'Color',colors.blue)
+    plot(t(options.fig_sel), data.velocity_filt(options.fig_sel), 'Color',colors.blue)
     plot(t(options.fig_sel), v(options.fig_sel),'Color',colors.red)
 %     legend(strcat('v_{',axplot,',meas}'), strcat('v_{',axplot,',filt}'), strcat('v_{',axplot,',sim}'))
     legend(strcat('v_{',axplot,',filt}'), strcat('v_{',axplot,',sim}'))
@@ -711,7 +711,7 @@ if options.select_figures
     subplot(313)
     hold on
 %     plot(t(options.fig_sel), velocity(options.fig_sel), 'Color', colors.blue)
-    plot(data.time(options.fig_sel), data.output_filt(options.fig_sel), 'Color',colors.blue)
+    plot(t(options.fig_sel), data.output_filt(options.fig_sel), 'Color',colors.blue)
     plot(t(options.fig_sel), x(options.fig_sel),'Color',colors.red)
 %     legend(strcat('v_{',axplot,',meas}'), strcat('v_{',axplot,',filt}'), strcat('v_{',axplot,',sim}'))
     legend(strcat('p_{',axplot,',filt}'), strcat('p_{',axplot,',sim}'))
