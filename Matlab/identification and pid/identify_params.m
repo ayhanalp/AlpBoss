@@ -7,12 +7,10 @@ fprintf('============ Start identification ============== \n')
 
 
 %% Settings & Execution
-options.all_figures = false;
-options.select_figures = true;
-% options.fig_sel = (1:800);
-% options.fig_sel = (1:800);
+options.all_figures = true;
+options.select_figures = false;
 options.fig_sel = (1:1000);
-options.prints = false;
+options.prints = true;
 
 % colors & linewidth for figures
 colors.blue   = [0.3010, 0.7450, 0.9330];
@@ -25,9 +23,9 @@ set(0, 'DefaultLineLineWidth', 1);
 %   model = identify("data/data_mat_file",'axis','axis symbol',Ts,f0,Fc,options,colors);
 % -----------------------------------------------------------------
 % cd 'Code/AlpBoss/Matlab/identification and pid'
-xmodel = identify("data/identification_x","x","x",0.02,0.5,0.9,options,colors);
+% xmodel = identify("data/identification_x","x","x",0.02,0.5,0.9,options,colors);
 % ymodel = identify("data/identification_y","y","y",0.02,0.53,0.6,options,colors);
-% zmodel = identify("data/identification_z","z","z",0.02,0.5,0.6,options,colors);
+zmodel = identify("data/identification_z","z","z",0.02,0.3,0.6,options,colors);
 % yawmodel = identify("data/vel_identification_yaw_preprocessed","yaw",char(952),0.02,0.3,1.,options,colors);
 
 % IMPORTANT NOTE: cutoff freq for x and y is based on crossover frequency (iteratively).
@@ -513,7 +511,6 @@ end
 
 if options.all_figures
     
-
     figure('Name','2nd - filtered - strictly proper - Minimum Phase: Freq Response')
     subplot(2,1,1)
     semilogx(f, 20*log10(abs(FRF)))
@@ -532,6 +529,7 @@ if options.all_figures
     xlim([f(1) f(end)])
     xlabel('f  [Hz]')
     ylabel('\phi(FRF)  [^\circ]')
+    legend('Fitted FRF','Empirical FRF')
 
     figure('Name','2nd - filtered - strictly proper - Minimum Phase: Simulation')
     subplot(211)

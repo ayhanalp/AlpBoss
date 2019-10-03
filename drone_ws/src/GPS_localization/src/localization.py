@@ -33,6 +33,9 @@ class GpsLocalization(object):
         self.init = True
         rospy.init_node('gps_localization')
 
+        Ts = rospy.get_param('gps_localization/sample_time', 0.02)
+        self.rate = rospy.rate(1./Ts) 
+
         self.broadc = tf2_ros.TransformBroadcaster()
         self.stbroadc = tf2_ros.StaticTransformBroadcaster()
         self.tfBuffer = tf2_ros.Buffer()
@@ -64,8 +67,11 @@ class GpsLocalization(object):
         self.calibrate()
 
         self.init_transforms()
-				
-        rospy.spin()
+		
+        # Publish pose estimates at a steady rate.
+        while not self.rospy.is_shutdown():
+            self.publish_pose_est()
+            self.rate.sleep()
 
     def calibrate(self, *_):
         print 'waiting for service local pos ref'
@@ -83,9 +89,8 @@ class GpsLocalization(object):
         print blue('---- Calibrated ---- \n')
 
     def init_transforms(self):
+        '''Initialize transforms (tf module).
         '''
-        '''
-
         self.tf_w_in_ref = TransformStamped()
         self.tf_w_in_ref.header.frame_id = "ref"
         self.tf_w_in_ref.child_frame_id = "world"
@@ -111,7 +116,6 @@ class GpsLocalization(object):
         self.ready.publish(Empty())
         print green('---- GPS Localization running ----')
 
-
     def get_position_gps(self, gps_coord):
         '''Returns PoseStamped of the i'th object in self.tracked_objects.
         Pose is expressed in gps reference frame.
@@ -123,7 +127,7 @@ class GpsLocalization(object):
         self.pose_d_in_w.pose.position = gps_coord.point
 
         if not self.init:
-        	self.publish_pose_est()
+        	self.update_pose_est()
 
     def get_orientation(self, quat):
         '''Get yaw. Broadcast new tf.
@@ -131,8 +135,13 @@ class GpsLocalization(object):
         self.pose_d_in_w.header.stamp = quat.header.stamp
         self.pose_d_in_w.pose.orientation = quat.quaternion   	
 
-
     def publish_pose_est(self):
+        '''Publish the latest pose update.
+        '''
+        self.pos_update_rot.publish(data_rot)
+        self.pos_update.publish(data)
+
+    def update_pose_est(self):
         '''Publishes message that calibration is completed. Starts publishing
         pose measurements.
         '''
@@ -183,9 +192,6 @@ class GpsLocalization(object):
         pose_d_in_r = self.transform_pose(self.pose_d_in_w, "world",
                                           "world_rot")
         data_rot = PoseMeas(meas_world=pose_d_in_r, yaw=yaw)
-
-        self.pos_update_rot.publish(data_rot)
-        self.pos_update.publish(data)
 
     def get_euler_angles(self, transf):
         '''
