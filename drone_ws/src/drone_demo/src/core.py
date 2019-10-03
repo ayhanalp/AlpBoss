@@ -43,7 +43,7 @@ class Demo(object):
         self.state_finish = False
         self.omg_standby = False
         self.airborne = False
-        self.trackpad_held = False
+        self.state_button_held = False
         self.menu_button_held = False
         self.task_dict = {
             "standby": [],
@@ -71,10 +71,9 @@ class Demo(object):
         rospy.Subscriber(
             'fsm/task', String, self.switch_task)
         rospy.Subscriber(
+            'fsm/state_button', Bool, self.switch_state)
+        rospy.Subscriber(
             'controller/state_finish', Empty, self.ctrl_state_finish)
-
-
-        # REPLACE WITH AIRBORNE & BATTERY DETECTION DJI DRONE
         rospy.Subscriber(
             '/dji_sdk/flight_status', UInt8, self.get_flight_status)
         rospy.Subscriber(
@@ -104,7 +103,7 @@ class Demo(object):
 
                     # IRRELEVANT WHEN NOT USING OMGTOOLS
                     # # Omg tools should return to its own standby status unless
-                    # # the controller trackpad has been pressed.
+                    # # the state_button has been pressed.
                     # if self.state in {"omg standby", "omg fly"}:
                     #     self.omg_standby = True
                     # else:
@@ -128,7 +127,7 @@ class Demo(object):
                 # OMG STUFF
                 #     leave_omg = (
                 #         self.state == "omg standby" and not self.omg_standby)
-                #     # User forces leaving omg with trackpad or other new task
+                #     # User forces leaving omg with state_button or other new task
                 #     # received --> leave the for loop for the current task.
                 #     if (leave_omg or self.new_task):
                 #         # print cyan('---- Broke for loop ----')
@@ -230,43 +229,42 @@ class Demo(object):
         print cyan(' Core received a new task: ', task.data)
 
     # REPLACE WITH TAKE-OFF/LANDING PROCEDURE DJI
-    # def take_off_land(self, pressed):
-    #     '''Check if menu button is pressed and switch to take-off or land
-    #     sequence depending on last task that was executed.
-    #     '''
-    #     if pressed.data and not self.menu_button_held:
-    #         if self.airborne:
-    #             self.state_sequence = self.task_dict.get("land", [])
-    #         else:
-    #             self.state_sequence = self.task_dict.get("take-off", [])
-    #         self.new_task = True
-    #         print cyan(
-    #             ' Bebop_core received a new task: ',
-    #             self.state_sequence[0])
-    #         self.menu_button_held = True
-    #     elif not pressed.data and self.menu_button_held:
-    #         self.menu_button_held = False
+    def take_off_land(self, pressed):
+        '''Check if menu button is pressed and switch to take-off or land
+        sequence depending on last task that was executed.
+        '''
+        if pressed.data and not self.menu_button_held:
+            if self.airborne:
+                self.state_sequence = self.task_dict.get("land", [])
+            else:
+                self.state_sequence = self.task_dict.get("take-off", [])
+            self.new_task = True
+            print cyan(
+                ' Bebop_core received a new task: ',
+                self.state_sequence[0])
+            self.menu_button_held = True
+        elif not pressed.data and self.menu_button_held:
+            self.menu_button_held = False
 
 ####################
 # Helper functions #
 ####################
 
-    # REPLACE trackpad press with something in rqt 
-    # def switch_state(self, trackpad_pressed):
-    #     '''When controller trackpad is pressed changes change_state variable
-    #     to true to allow fsm to switch states in state sequence.
-    #     '''
-    #     if (trackpad_pressed.data and not self.trackpad_held) and (
-    #             self.state not in {"standby", "initialization"}):
-    #         self.trackpad_held = True
-    #         if self.state == "omg standby":
-    #             self.omg_standby = False
-    #             self.new_task = False
-    #         self.change_state = True
-    #         print highlight_blue(' Switching to next state ')
+    def switch_state(self, state_button_pressed):
+        '''When state_button is pressed changes change_state variable
+        to true to allow fsm to switch states in state sequence.
+        '''
+        if (state_button_pressed.data and not self.state_button_held) and (
+                self.state not in {"standby", "initialization"}):
+            self.state_button_held = True
+            if self.state == "omg standby":
+                self.omg_standby = False
+                self.new_task = False
+            self.change_state = True
+            print highlight_blue(' Switching to next state ')
 
-    #     elif not trackpad_pressed.data and self.trackpad_held:
-    #         self.trackpad_held = False
+        elif not state_button_pressed.data and self.state_button_held:
+            self.state_button_held = False
 
     def get_flight_status(self, flight_status):
         '''Checks whether the drone is standing on the ground or flying and

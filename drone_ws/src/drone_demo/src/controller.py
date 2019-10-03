@@ -342,7 +342,6 @@ class Controller(object):
     def take_off_land(self):
         '''Take off or land.
         '''
-        # self.cmd_vel.publish(Twist())
         self.full_cmd.twist = Twist()
 
         if self.state == "take-off":

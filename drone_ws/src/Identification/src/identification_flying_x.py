@@ -63,8 +63,8 @@ class Ident(object):
         self.STABLE_ENABLE = 0x01
 
         # TOPICS
-        self.cmd_vel_dji = rospy.Publisher('/dji_sdk/flight_control_setpoint_generic',
-                                         Joy, queue_size=1)
+        self.cmd_vel_dji = rospy.Publisher(
+            '/dji_sdk/flight_control_setpoint_generic',Joy, queue_size=1)
         
         rospy.Subscriber('demo', Empty, self.flying)
         rospy.Subscriber(
