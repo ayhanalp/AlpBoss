@@ -30,8 +30,10 @@ from fabulous.color import (highlight_red, highlight_green, highlight_blue,
 #  - control authority service call CHECK
 #  - copy controls from identification CHECK
 #  - safety brake CHECK
-#  - model parameters for dji
+#  - model parameters for dji CHECK
 #  - replace trackpad with topic for rqt CHECK
+#  - PIDs 
+#  - yaw control PID
 
 
 class Controller(object):
@@ -180,6 +182,8 @@ class Controller(object):
         '''Initializes (reads and sets) externally configurable parameters
         (rosparams).
         '''
+        self._sample_time = rospy.get_param('controller/sample_time', 0.02)
+        self.rate = rospy.Rate(1./self._sample_time)
         self.Kp_x = rospy.get_param('controller/Kp_x', 0.6864)
         self.Ki_x = rospy.get_param('controller/Ki_x', 0.6864)
         self.Kd_x = rospy.get_param('controller/Kd_x', 0.6864)
@@ -188,20 +192,17 @@ class Controller(object):
         self.Kd_y = rospy.get_param('controller/Kd_y', 0.6864)
         self.Kp_z = rospy.get_param('controller/Kp_z', 0.5)
         self.Ki_z = rospy.get_param('controller/Ki_z', 1.5792)
-        self.K_theta = rospy.get_param('controller/K_theta', 0.3)
+        self.Kd_z = rospy.get_param('controller/Kd_z', 1.5792)       
+        self.Kp_yaw = rospy.get_param('controller/Kp_yaw', 0.3)
+        self.Ki_yaw = rospy.get_param('controller/Ki_yaw', 0.3)
+        self.Kd_yaw = rospy.get_param('controller/Kd_yaw', 0.3)
+
         self.max_input = rospy.get_param('controller/max_input', 0.5)
-        self.room_width = rospy.get_param('motionplanner/room_width', 1.)
-        self.room_depth = rospy.get_param('motionplanner/room_depth', 1.)
-        self.room_height = rospy.get_param('motionplanner/room_height', 1.)
-        self.drone_radius = rospy.get_param('motionplanner/drone_radius', 0.20)
-        self.safety_treshold = rospy.get_param('controller/safety_treshold',
-                                               0.5)
+        self.max_z_input = rospy.get_param('controller/max_z_input', 0.5)
+        self.max_yaw_input = rospy.get_param('controller/max_yaw_input', 0.5)
+
         self.pos_nrm_tol = rospy.get_param(
                                        'controller/goal_reached_pos_tol', 0.05)
-        self._sample_time = rospy.get_param('controller/sample_time', 0.01)
-        self.omg_update_time = rospy.get_param(
-            'controller/omg_update_time', 0.5)
-        self.rate = rospy.Rate(1./self._sample_time)
 
         # Setup low pass filter for trajectory drawing task.
         cutoff_freq_LPF = rospy.get_param('controller/LPF_cutoff', 0.5)
@@ -238,11 +239,12 @@ class Controller(object):
         self.X = np.array(
                     [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0]])
         self.desired_yaw = 0.
-        self.real_yaw = 0.0
+        self.drone_yaw_est = 0.0
         self.pos_nrm = np.inf
         self.fb_cmd_prev = Twist()
         self.pos_error_prev = PointStamped()
         self.vel_error_prev = PointStamped()
+        self.yaw_error_prev = 0.
         self.measurement_valid = False
         self._goal = Pose()
         self.hover_setpoint = Pose()
@@ -256,6 +258,7 @@ class Controller(object):
         self.ff_cmd = Twist()
         self.drone_vel_est = Point()
         self.drone_pose_est = Pose()
+        self.drone_yaw_est = 0.
 
     def _request_ctrl_authority(self):
         '''Service call to dji sdk to obtain control authority.
@@ -303,7 +306,7 @@ class Controller(object):
                 # current place.
                 self.full_cmd.header.stamp = rospy.Time.now()
                 (self.drone_pose_est, self.drone_vel_est,
-                 self.real_yaw, measurement_valid) = self.get_pose_est()
+                 self.drone_yaw_est, measurement_valid) = self.get_pose_est()
                 self.hover_setpoint.position = self.drone_pose_est.position
 
             if not self.state == "initialization":
@@ -333,7 +336,7 @@ class Controller(object):
         '''Drone keeps itself in same location through a PID controller.
         '''
         if self.airborne:
-            (self.drone_pose_est, self.drone_vel_est, self.real_yaw,
+            (self.drone_pose_est, self.drone_vel_est, self.drone_yaw_est,
                 measurement_valid) = self.get_pose_est()
 
             if not measurement_valid:
@@ -515,7 +518,7 @@ class Controller(object):
         # Retrieve new pose estimate from World Model.
         # This is a pose estimate for the first following time instance [k+1]
         # if the velocity command sent above corresponds to time instance [k].
-        (self.drone_pose_est, self.drone_vel_est, self.real_yaw,
+        (self.drone_pose_est, self.drone_vel_est, self.drone_yaw_est,
             measurement_valid) = self.get_pose_est()
         self.publish_vhat_vector(self.drone_pose_est.position,
                                  self.drone_vel_est)
@@ -565,35 +568,19 @@ class Controller(object):
         '''Sets pid gains to a lower setting for combination with feedforward
         flight to keep the controller stable.
         '''
-        if self.state in {"omg fly", "fly to start"} and self.difficult_obst:
-            self.Kp_x = rospy.get_param('controller/Kp_omg_low_x', 0.6864)
-            self.Ki_x = rospy.get_param('controller/Ki_omg_low_x', 0.6864)
-            self.Kd_x = rospy.get_param('controller/Kd_omg_low_x', 0.6864)
-            self.Kp_y = rospy.get_param('controller/Kp_omg_low_y', 0.6864)
-            self.Ki_y = rospy.get_param('controller/Ki_omg_low_y', 0.6864)
-            self.Kd_y = rospy.get_param('controller/Kd_omg_low_y', 0.6864)
-            self.Kp_z = rospy.get_param('controller/Kp_omg_low_z', 0.5)
-            self.Ki_z = rospy.get_param('controller/Ki_omg_low_z', 1.5792)
-
-        elif self.state in {"omg fly", "fly to start", "dodge dyn obst"}:
-            self.Kp_x = rospy.get_param('controller/Kp_omg_x', 0.6864)
-            self.Ki_x = rospy.get_param('controller/Ki_omg_x', 0.6864)
-            self.Kd_x = rospy.get_param('controller/Kd_omg_x', 0.6864)
-            self.Kp_y = rospy.get_param('controller/Kp_omg_y', 0.6864)
-            self.Ki_y = rospy.get_param('controller/Ki_omg_y', 0.6864)
-            self.Kd_y = rospy.get_param('controller/Kd_omg_y', 0.6864)
-            self.Kp_z = rospy.get_param('controller/Kp_omg_z', 0.5)
-            self.Ki_z = rospy.get_param('controller/Ki_omg_z', 1.5792)
-
-        elif self.state in {"follow path", "drag drone"}:
-            self.Kp_x = rospy.get_param('controller/Kp_dt_x', 0.6864)
-            self.Ki_x = rospy.get_param('controller/Ki_dt_x', 0.6864)
-            self.Kd_x = rospy.get_param('controller/Kd_dt_x', 0.6864)
-            self.Kp_y = rospy.get_param('controller/Kp_dt_y', 0.6864)
-            self.Ki_y = rospy.get_param('controller/Ki_dt_y', 0.6864)
-            self.Kd_y = rospy.get_param('controller/Kd_dt_y', 0.6864)
-            self.Kp_z = rospy.get_param('controller/Kp_dt_z', 0.5)
-            self.Ki_z = rospy.get_param('controller/Ki_dt_z', 1.5792)
+        if self.state in {"follow path"}:
+            self.Kp_x = rospy.get_param('controller/Kp_tt_x', 0.6864)
+            self.Ki_x = rospy.get_param('controller/Ki_tt_x', 0.6864)
+            self.Kd_x = rospy.get_param('controller/Kd_tt_x', 0.6864)
+            self.Kp_y = rospy.get_param('controller/Kp_tt_y', 0.6864)
+            self.Ki_y = rospy.get_param('controller/Ki_tt_y', 0.6864)
+            self.Kd_y = rospy.get_param('controller/Kd_tt_y', 0.6864)
+            self.Kp_z = rospy.get_param('controller/Kp_tt_z', 0.5)
+            self.Ki_z = rospy.get_param('controller/Ki_tt_z', 1.5792)
+            self.Kd_z = rospy.get_param('controller/Kd_tt_z', 1.5792)
+            self.Kp_yaw = rospy.get_param('controller/Kp_tt_yaw', 0.5)
+            self.Ki_yaw = rospy.get_param('controller/Ki_tt_yaw', 1.5792)
+            self.Kd_yaw = rospy.get_param('controller/Kd_tt_yaw', 1.5792)
 
     def reset_pid_gains(self):
         '''Resets the PID gains to the rosparam vaules after tasks "undamped
@@ -607,6 +594,10 @@ class Controller(object):
         self.Kd_y = rospy.get_param('controller/Kd_y', 0.6864)
         self.Kp_z = rospy.get_param('controller/Kp_z', 0.5)
         self.Ki_z = rospy.get_param('controller/Ki_z', 1.5792)
+        self.Kd_z = rospy.get_param('controller/Kd_z', 1.5792)
+        self.Kp_yaw = rospy.get_param('controller/Kp_yaw', 0.5)
+        self.Ki_yaw = rospy.get_param('controller/Ki_yaw', 1.5792)
+        self.Kd_yaw = rospy.get_param('controller/Kd_yaw', 1.5792)
 
     def check_goal_reached(self):
         '''Determines whether goal is reached.
@@ -706,10 +697,10 @@ class Controller(object):
                     self.max_input), - self.max_input)
             self.full_cmd.twist.linear.z = max(min((
                     self.ff_cmd.linear.z + fb_cmd.linear.z),
-                    self.max_input), - self.max_input)
+                    self.max_z_input), - self.max_z_input)
             self.full_cmd.twist.angular.z = max(min((
                     self.ff_cmd.angular.z + fb_cmd.angular.z),
-                    self.max_input), - self.max_input)
+                    self.max_yaw_input), - self.max_yaw_input)
         else:
             self.full_cmd.twist.linear.x = max(min((
                     fb_cmd.linear.x),
@@ -719,12 +710,12 @@ class Controller(object):
                     self.max_input), - self.max_input)
             self.full_cmd.twist.linear.z = max(min((
                     fb_cmd.linear.z),
-                    self.max_input), - self.max_input)
+                    self.max_z_input), - self.max_z_input)
             self.full_cmd.twist.angular.z = max(min((
                     fb_cmd.angular.z),
-                    self.max_input), - self.max_input)
+                    self.max_yaw_input), - self.max_yaw_input)
 
-    def feedbeck(self, pos_desired, vel_desired):
+    def feedbeck(self, pos_desired, vel_desired, yaw_desired=self.desired_yaw):
         '''Whenever the target is reached, apply position feedback to the
         desired end position to remain in the correct spot and compensate for
         drift.
@@ -732,7 +723,7 @@ class Controller(object):
         '''
         fb_cmd = Twist()
 
-        # # PID
+        # PID
         pos_error_prev = self.pos_error_prev
         pos_error = PointStamped()
         pos_error.header.frame_id = "world"
@@ -751,6 +742,10 @@ class Controller(object):
 
         pos_error = self.transform_point(pos_error, "world", "world_rot")
         vel_error = self.transform_point(vel_error, "world", "world_rot")
+        
+        yaw_error_prev = self.yaw_error_prev
+        yaw error = ((((yaw_desired - self.drone_yaw_est) -
+                         np.pi) % (2*np.pi)) - np.pi)
 
         fb_cmd.linear.x = max(- self.max_input, min(self.max_input, (
                 self.fb_cmd_prev.linear.x +
@@ -768,30 +763,29 @@ class Controller(object):
                 pos_error_prev.point.y +
                 self.Kd_y*(vel_error.point.y - vel_error_prev.point.y))))
 
-        fb_cmd.linear.z = max(- self.max_input, min(self.max_input, (
+        fb_cmd.linear.z = max(- self.max_z_input, min(self.max_z_input, (
                 self.fb_cmd_prev.linear.z +
                 (self.Kp_z + self.Ki_z*self._sample_time/2) *
                 pos_error.point.z +
                 (-self.Kp_z + self.Ki_z*self._sample_time/2) *
                 pos_error_prev.point.z)))
 
-        # Add theta feedback to remain at zero yaw angle
-        angle_error = ((((self.desired_yaw - self.real_yaw) -
-                         np.pi) % (2*np.pi)) - np.pi)
-        # print 'desired yaw angle', self.desired_yaw
-        # print 'real yaw angle', self.real_yaw
-        # print 'angle error', angle_error
-        K_theta = self.K_theta + (np.pi - abs(angle_error))/np.pi*0.2
-        # print 'K_theta', K_theta
-        fb_cmd.angular.z = (K_theta*angle_error)
-        # fb_cmd.angular.z = (self.K_theta*angle_error)
+        # UNDER CONSTRUCTION
+        fb_cmd.angular.z = max(- self.max_yaw_input, min(self.max_yaw_input, (
+                self.fb_cmd_prev.angular.z +
+                (self.Kp_yaw + self.Ki_yaw*self._sample_time/2) *
+                yaw_error +
+                (-self.Kp_z + self.Ki_z*self._sample_time/2) *
+                yaw_error_prev.point.z)))
+
 
         self.pos_error_prev = pos_error
         self.vel_error_prev = vel_error
+        self.yaw_error_prev = yaw_error
         self.fb_cmd_prev = fb_cmd
 
         # Publish the position error.
-        self.pos_error_pub.publish(pos_error)
+        # self.pos_error_pub.publish(pos_error)
 
         return fb_cmd
 

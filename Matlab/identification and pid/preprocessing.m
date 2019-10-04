@@ -72,3 +72,5 @@ output_x = data_yaw.output_x(1,1:index_yaw);
 output_y = data_yaw.output_y(1,1:index_yaw);
 output_yaw = data_yaw.output_yaw(1,1:index_yaw);
 save('data/identification_yaw_preprocessed.mat', 'input', 'time', 'output_x', 'output_y', 'output_z', 'output_yaw')
+
+clear variables
