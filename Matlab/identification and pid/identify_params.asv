@@ -8,7 +8,7 @@ fprintf('============ Start identification ============== \n')
 run preprocessing.m
 
 %% Settings & Execution
-options.all_figures = false;
+options.all_figures = true;
 options.select_figures = false;
 options.fig_sel = (1:1000);
 options.prints = false;
@@ -23,10 +23,10 @@ set(0, 'DefaultLineLineWidth', 1);
 % SYNTAX: 
 %   model = identify("data/data_mat_file",'axis','axis symbol',Ts,f0,Fc,options,colors);
 % -----------------------------------------------------------------
-xmodel = identify("data/identification_x_preprocessed","x","x",0.02,0.2,0.7,options,colors);
-ymodel = identify("data/identification_y_preprocessed","y","y",0.02,0.2,0.7,options,colors);
-zmodel = identify("data/identification_z_preprocessed","z","z",0.02,0.2,0.6,options,colors);
-yawmodel = identify("data/identification_yaw_preprocessed","yaw",char(952),0.02,0.3,1.,options,colors);
+xmodel = identify("data/identification_x_preprocesse","x","x",0.02,0.2,0.7,options,colors);
+% ymodel = identify("data/identification_y_preprocessed","y","y",0.02,0.2,0.7,options,colors);
+% zmodel = identify("data/identification_z_preprocessed","z","z",0.02,0.2,0.6,options,colors);
+% yawmodel = identify("data/identification_yaw_preprocessed","yaw",char(952),0.02,0.3,1.,options,colors);
 
 % IMPORTANT NOTE: cutoff freq for x and y is based on crossover frequency (iteratively).
 %       For z, no crossover (DC gain below 0 dB) --> visually (trial and
@@ -107,8 +107,7 @@ data.t = t;
 data.f = f;
 
 % Differentiation of position
-% velocity = gradient(output)./gradient(data.time);
-velocity = gradient(output)./Ts;
+velocity = gradient(output)./gradient(data.time);
 data.velocity = velocity;
 
 
@@ -165,8 +164,8 @@ output_filt = filter(B,A,output);
 velocity_filt = filter(B,A,velocity);
 
 % TEST no filtering - REMOVE THIS!
-% input_filt = input;
-% velocity_filt = velocity;
+%input_filt = input;
+%velocity_filt = velocity;
 
 
 acc = gradient(velocity_filt)/Ts;
@@ -565,7 +564,7 @@ end
 
 %% Continuous time system
 transff.cont = d2c(transff.discr,'matched');
-%transff.cont = d2c(transff.discr,'tustin');
+% transff.cont = d2c(transff.discr,'tustin');
 
 FRFc = squeeze(freqresp(transff.cont,2*pi*f));
 data.FRFc_vel = FRFc;
@@ -840,7 +839,7 @@ end
 
 [b_dLPFi, a_dLPFi] = tfdata(sys_dLPF^(-1), 'v');
 [A_dLPFi, B_dLPFi, C_dLPFi, D_dLPFi] = tf2ss(b_dLPFi, a_dLPFi);
-ss_vel_invLPF = ss(A_dLPFi,B_dLPFi,C_dLPFi,D_dLPFi,0.02);
+ss_vel_invLPF = ss(A_dLPFi,B_dLPFi,C_dLPFi,D_dLPFi,0.01);
 
 % ! Numerically more stable state space representation of the same system:
 ss_vel_invLPF = prescale(ss_vel_invLPF);
