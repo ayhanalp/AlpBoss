@@ -5,10 +5,11 @@ clc
 format long
 fprintf('============ Start identification ============== \n')
 
+% run preprocessing.m
 
 %% Settings & Execution
-options.all_figures = false;
-options.select_figures = false;
+options.all_figures = true;
+options.select_figures = true;
 options.fig_sel = (1:1000);
 options.prints = false;
 
@@ -22,10 +23,10 @@ set(0, 'DefaultLineLineWidth', 1);
 % SYNTAX: 
 %   model = identify("data/data_mat_file",'axis','axis symbol',Ts,f0,Fc,options,colors);
 % -----------------------------------------------------------------
-xmodel = identify("data/identification_x","x","x",0.02,0.2,1.,options,colors);
-ymodel = identify("data/identification_y","y","y",0.02,0.2,1.,options,colors);
-zmodel = identify("data/identification_z","z","z",0.02,0.2,0.6,options,colors);
-% yawmodel = identify("data/vel_identification_yaw_preprocessed","yaw",char(952),0.02,0.3,1.,options,colors);
+% xmodel = identify("data/identification_x_preprocessed","x","x",0.02,0.2,0.7,options,colors);
+% ymodel = identify("data/identification_y_preprocessed","y","y",0.02,0.2,0.7,options,colors);
+% zmodel = identify("data/identification_z_preprocessed","z","z",0.02,0.2,0.6,options,colors);
+yawmodel = identify("data/identification_yaw_preprocessed","yaw",char(952),0.02,0.3,1.,options,colors);
 
 % IMPORTANT NOTE: cutoff freq for x and y is based on crossover frequency (iteratively).
 %       For z, no crossover (DC gain below 0 dB) --> visually (trial and
@@ -88,10 +89,10 @@ data = load(data_file);
 %% Extract some signals from the data
 
 % CUTOFF USEFUL DATA IN PREPROCESSING
-data.time = data.time';
-data.input = data.input';
+data.time = data.time(1:end-50)';
+data.input = data.input(1:end-50)';
 data.output = eval(strcat('data.output_', ax));
-data.output = data.output'-data.output(1);
+data.output = data.output(1:end-50)'-data.output(1);
 input  = data.input;
 output = data.output;
 
@@ -132,6 +133,13 @@ vel_fft = fft(velocity);
 pos_fft = fft(output);
 input(length(input)) = 0;
 input_fft = fft(input);
+
+% figure
+% subplot(211)
+% semilogx(f, 20*log10(abs(input_fft)))
+% subplot(212)
+% semilogx(f, 180/pi*unwrap(angle(input_fft)))
+
 data.FRF_emp = vel_fft./input_fft;
 data.FRF_emp_pos = frd(pos_fft./input_fft, 2*pi*f);
 
@@ -142,11 +150,7 @@ fcn = fc/(fs/2); % normalized cutoff frequency (as butter() accepts)
 
 
 %% Filtering of the in- and output data using Butterworth filter
-if ax == "yaw"
-    nb = 2;
-else
-    nb = 3;
-end
+nb = 3;
 
 [B, A] = butter(nb,fcn);
 % input filtering
@@ -258,11 +262,8 @@ if or(options.all_figures, options.select_figures)
 end
 
 %% Fitting parameters
-if ax == "yaw"
-    [params, tf_vel, data] = fit_1st_order(data, axplot, Ts, options,colors);
-else
-    [params, tf_vel, data] = fit_2nd_order(data, axplot, Ts, options,colors);
-end
+[params, tf_vel, data] = fit_2nd_order(data, axplot, Ts, options,colors);
+
 
 %% Integrating velocity models
 
@@ -746,11 +747,8 @@ FRF_diff = (FRF_emp-FRFc)./FRFc;
 
 
 %% Low pass filtering the inverse system ( = multiplying the regular system with inverse LPF)
-if ax == "yaw"
-    nb = 2;
-else
-    nb = 3;
-end
+nb = 3;
+
 
 [Bpre, Apre] = butter(nb, Fc*2*pi, 's'); % continuous time!
 data.LPF.A = Apre;
@@ -824,20 +822,17 @@ if options.select_figures
     legend('H(s)^{-1}','LPF*H(s)^{-1}', 'Location','northwest')
 end
 
-%% Discretize filtered system to 100Hz
+%% Discretize filtered system to Controller rate
 
-sys_dLPF = c2d(sys_LPF,0.01,'tustin');
+sys_dLPF = c2d(sys_LPF,0.02,'tustin');
 
 if options.all_figures
-    figure('Name','Butterworth filtered, discretized (100Hz) system: Freq resp')
+    figure('Name','Butterworth filtered, discretized (50Hz) system: Freq resp')
     bode(sys_dLPF)
 
     figure('Name', 'Butterworth filtered, discretized (100Hz) system: Pole Zero Map')
     pzmap(sys_dLPF)
 end
-
-%% Discretize filtered system
-sys_dLPF = c2d(sys_LPF,0.01,'tustin');
 
 
 %% State space representation of the filtered system and simulation

@@ -38,31 +38,37 @@ for ii = size(data_yaw.input,2):-1:1
     end
 end
 
+for i = 1:length(data_yaw.input)
+    if data_yaw.output_yaw(i) < 0
+        data_yaw.output_yaw(i) = data_yaw.output_yaw(i) + 2*pi;
+    end
+end
+
 input = data_x.input(1,1:index_x);
 time = data_x.time(1,1:index_x) - data_x.time(1,1);
 output_z = data_x.output_z(1,1:index_x);
 output_x = data_x.output_x(1,1:index_x);
 output_y = data_x.output_y(1,1:index_x);
-save identification_x.mat input time output_x  output_y output_z
-
+save('data/identification_x_preprocessed.mat', 'input', 'time', 'output_x', 'output_y', 'output_z')
 
 input = data_y.input(1,1:index_y);
 time = data_y.time(1,1:index_y) - data_y.time(1,1);
 output_z = data_y.output_z(1,1:index_y);
 output_x = data_y.output_x(1,1:index_y);
 output_y = data_y.output_y(1,1:index_y);
-save identification_y.mat input time output_x  output_y output_z
+save('data/identification_y_preprocessed.mat', 'input', 'time', 'output_x', 'output_y', 'output_z')
 
 input = data_z.input(1,1:index_z);
 time = data_z.time(1,1:index_z) - data_z.time(1,1);
 output_z = data_z.output_z(1,1:index_z);
 output_x = data_z.output_x(1,1:index_z);
 output_y = data_z.output_y(1,1:index_z);
-save identification_z.mat input time output_x  output_y output_z
+save('data/identification_z_preprocessed.mat', 'input', 'time', 'output_x', 'output_y', 'output_z')
 
 input = data_yaw.input(1,1:index_yaw);
 time = data_yaw.time(1,1:index_yaw) - data_yaw.time(1,1);
 output_z = data_yaw.output_z(1,1:index_yaw);
 output_x = data_yaw.output_x(1,1:index_yaw);
 output_y = data_yaw.output_y(1,1:index_yaw);
-save identification_yaw.mat input time output_x  output_y output_z
+output_yaw = data_yaw.output_yaw(1,1:index_yaw);
+save('data/identification_yaw_preprocessed.mat', 'input', 'time', 'output_x', 'output_y', 'output_z', 'output_yaw')
