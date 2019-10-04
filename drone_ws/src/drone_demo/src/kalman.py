@@ -29,23 +29,24 @@ class Kalman(object):
 
         self.vel_list_corr = []
 
-        self.X_r = np.zeros(shape=(8, 1))
-        self.X_r_t0 = np.zeros(shape=(8, 1))
-        self.input_cmd_Ts = rospy.get_param('vel_cmd/sample_time', 0.01)  # s
+        self.X_r = np.zeros(shape=(9, 1))
+        self.X_r_t0 = np.zeros(shape=(9, 1))
+        self.input_cmd_Ts = rospy.get_param('controller/sample_time', 0.02)  # s
 
-        self.Phat_t0 = np.zeros(8)
-        self.Phat = np.zeros(8)
+        self.Phat_t0 = np.zeros(9)
+        self.Phat = np.zeros(9)
 
         # Kalman tuning parameters.
         self.R = np.identity(3)  # measurement noise covariance
-        self.Q = np.array([[1, 0, 0, 0, 0, 0, 0, 0],
-                           [0, 1e1, 0, 0, 0, 0, 0, 0],
-                           [0, 0, 1, 0, 0, 0, 0, 0],
-                           [0, 0, 0, 1, 0, 0, 0, 0],
-                           [0, 0, 0, 0, 1e1, 0, 0, 0],
-                           [0, 0, 0, 0, 0, 1, 0, 0],
-                           [0, 0, 0, 0, 0, 0, 1, 0],
-                           [0, 0, 0, 0, 0, 0, 0, 1e1]])
+        self.Q = np.array([[1e0, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 1e1, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 1e0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 1e0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 1e1, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 1e0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 1e0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 1e1, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 1e0]])
 
         self.tfBuffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tfBuffer)

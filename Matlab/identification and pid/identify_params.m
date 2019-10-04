@@ -500,10 +500,10 @@ x = velocity_filt(3:end);
 Phi = [-velocity_filt(2:end-1), -velocity_filt(1:end-2), input_filt(1:end-2)];
 theta_filt = Phi\x;
 
-params.b = theta_filt(3);
-params.a = [1, theta_filt(1) theta_filt(2)];
+params.discr.b = theta_filt(3);
+params.discr.a = [1, theta_filt(1) theta_filt(2)];
 
-transff.discr = tf(params.b, params.a, Ts);
+transff.discr = tf(params.discr.b, params.discr.a, Ts);
 
 FRF = squeeze(freqresp(transff.discr,2*pi*f));
 data.FRF_vel = FRF;
@@ -566,6 +566,9 @@ end
 %% Continuous time system
 transff.cont = d2c(transff.discr,'matched');
 %transff.cont = d2c(transff.discr,'tustin');
+[num,den] = tfdata(transff.cont,'v');
+params.cont.b = num;
+params.cont.a = den;
 
 FRFc = squeeze(freqresp(transff.cont,2*pi*f));
 data.FRFc_vel = FRFc;

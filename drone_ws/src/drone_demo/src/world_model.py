@@ -39,12 +39,6 @@ class WorldModel(object):
         self.state = "initialization"
         self.model = Model()
 
-        # Staat hier voor uitlezen van obstakels in de toekomst!
-        # rospy.Subscriber(
-        #     'vive_localization/c1_pose', PoseStamped, self.right_ctrl_update)
-        # rospy.Subscriber(
-        #     'vive_localization/c2_pose', PoseStamped, self.left_ctrl_update)
-
 
 class Model(object):
 
@@ -65,52 +59,55 @@ class Model(object):
         depending on varying Ts.
         '''
 
-        a2x = 6.167
-        a1x = 1.523
+        a2x = 3.767729427329192
+        a1x = 0.769912443207036
         a0x = 0.0
         Ax = np.array([[0., 1., 0.],
                        [0., 0., 1.],
                        [-a0x, -a1x, -a2x]])
-        a2y = 5.147
-        a1y = 2.116
+        a2y = 3.8585283886158945.147
+        a1y = 0.797045252870121
         a0y = 0.0
         Ay = np.array([[0., 1., 0.],
                        [0., 0., 1.],
                        [-a0y, -a1y, -a2y]])
-        a1z = 6.26
+        a2z = 4.405928490251072
+        a1z = 10.098361381876984
         a0z = 0.0
-        Az = np.array([[0., 1.],
-                       [-a0z, -a1z]])
+        Az = np.array([[0., 1., 0.],
+                       [0., 0., 1.],
+                       [-a0z, -a1z, -a2z]])
 
-        self.A = np.zeros([8, 8])  # continuous A matrix
+        self.A = np.zeros([9, 9])  # continuous A matrix
         self.A[0:3, 0:3] = Ax
         self.A[3:6, 3:6] = Ay
-        self.A[6:8, 6:8] = Az
+        self.A[6:9, 6:9] = Az
 
-        self.B = np.zeros([8, 3])  # continuous B matrix
+        self.B = np.zeros([9, 3])  # continuous B matrix
         self.B[2, 0] = 1
         self.B[5, 1] = 1
-        self.B[7, 2] = 1
+        self.B[8, 2] = 1
 
         b2x = 0.0
         b1x = 0.0
-        b0x = 22.51
+        b0x = 44.662508113232136
         Bx = np.array([b0x, b1x, b2x])
         b2y = 0.0
         b1y = 0.0
-        b0y = 18.96
+        b0y = 45.544522771307477
         By = np.array([b0y, b1y, b2y])
+        b2z = 0.0
         b1z = 0.0
-        b0z = 6.066
-        Bz = np.array([b0z, b1z])
-        self.C = np.zeros([3, 8])
+        b0z = 9.631427049967279
+        Bz = np.array([b0z, b1z, b2z])
+        self.C = np.zeros([3, 9])
         self.C[0, 0:3] = Bx
         self.C[1, 3:6] = By
-        self.C[2, 6:8] = Bz
+        self.C[2, 6:9] = Bz
 
         Bx = np.array([-b2x*a0x, b0x - a1x*b2x, b1x - b2x*a2x])
         By = np.array([-b2y*a0y, b0y - a1y*b2y, b1y - b2y*a2y])
-        Bz = np.array([-b1z*a0z, b0z - a1z*b1z])
+        Bz = np.array([-b2z*a0z, b0z - a1z*b2z, b1z - b2z*a2z])
         self.C_vel = np.zeros([3, 8])
         self.C_vel[0, 0:3] = Bx
         self.C_vel[1, 3:6] = By
