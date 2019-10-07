@@ -65,7 +65,7 @@ class Model(object):
         Ax = np.array([[0., 1., 0.],
                        [0., 0., 1.],
                        [-a0x, -a1x, -a2x]])
-        a2y = 3.8585283886158945.147
+        a2y = 3.8585283886158945
         a1y = 0.797045252870121
         a0y = 0.0
         Ay = np.array([[0., 1., 0.],
@@ -108,10 +108,10 @@ class Model(object):
         Bx = np.array([-b2x*a0x, b0x - a1x*b2x, b1x - b2x*a2x])
         By = np.array([-b2y*a0y, b0y - a1y*b2y, b1y - b2y*a2y])
         Bz = np.array([-b2z*a0z, b0z - a1z*b2z, b1z - b2z*a2z])
-        self.C_vel = np.zeros([3, 8])
+        self.C_vel = np.zeros([3, 9])
         self.C_vel[0, 0:3] = Bx
         self.C_vel[1, 3:6] = By
-        self.C_vel[2, 6:8] = Bz
+        self.C_vel[2, 6:9] = Bz
 
         self.D_vel = np.zeros([3, 3])
         self.D_vel[0, 0] = b2x

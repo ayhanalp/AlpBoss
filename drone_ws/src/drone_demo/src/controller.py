@@ -84,7 +84,7 @@ class Controller(object):
         self.B[3, 1] = 0.25  #By
         self.B[6, 2] = 0.50  #Bz
 
-        self.C = np.zeros([3, 8])
+        self.C = np.zeros([3, 9])
         Cx = [0.137390474398463,
               -0.132646688192171,
               0.127900741701118]
@@ -131,13 +131,9 @@ class Controller(object):
         self.pos_error_pub = rospy.Publisher(
             'controller/position_error', PointStamped, queue_size=1)
 
-        rospy.Subscriber('motionplanner/result', Trajectories,
-                         self.get_mp_result)
         rospy.Subscriber('localization/ready', Empty,
                          self.publish_obst_room)
         rospy.Subscriber('fsm/state', String, self.switch_state)
-        rospy.Subscriber(
-            'localization/pose', PoseMeas, self.new_measurement)
         rospy.Subscriber(
             '/dji_sdk/flight_status', UInt8, self.get_flight_status)
 
@@ -289,6 +285,7 @@ class Controller(object):
 
                 # State has not finished if it has been killed!
                 if not self.state_killed:
+                    print 'finish pub'
                     self.ctrl_state_finish.publish(Empty())
                     print yellow('------------------------')
                 self.state_killed = False
@@ -302,12 +299,14 @@ class Controller(object):
 
             if not self.state == "initialization":
                 self.hover()
+            print 'stuck'
             self.rate.sleep()
 
     def switch_state(self, state):
         '''Switches state according to the general fsm state as received by
         core.
         '''
+        print 'received new state', state
         if not (state.data == self.state):
             self.state = state.data
             self.state_changed = True
@@ -317,6 +316,8 @@ class Controller(object):
                 self.state_killed = True
         else:
             print yellow(' Controller already in the correct state!')
+
+        print self.state, state.data, self.state_changed
 
         # When going to standby, remove markers in Rviz from previous task.
         # GEBEURT TOCH NOOIT?
@@ -355,16 +356,18 @@ class Controller(object):
             except rospy.ServiceException, e:
                 print highlight_red('Takeoff service call failed: %s') % e
                 takeoff_success = False
+                rospy.sleep(3.)
 
         elif self.state == "land":
             self.reset_pid_gains()
             try:
                 land = rospy.ServiceProxy(
                     "/dji_sdk/drone_task_control", DroneTaskControl)
-                takeoff_success = takeoff(task=6)
+                land_success = land(task=6)
             except rospy.ServiceException, e:
                 print highlight_red('Land service call failed: %s') % e
-                takeoff_success = False
+                land_success = False
+                rospy.sleep(3.)
 
     def build_traj(self):
         '''Build and pre-process a trajectory.
@@ -714,7 +717,7 @@ class Controller(object):
                     fb_cmd.angular.z),
                     self.max_yaw_input), - self.max_yaw_input)
 
-    def feedbeck(self, pos_desired, vel_desired, yaw_desired=self.desired_yaw):
+    def feedbeck(self, pos_desired, vel_desired, yaw_desired=0.):
         '''Whenever the target is reached, apply position feedback to the
         desired end position to remain in the correct spot and compensate for
         drift.
@@ -743,7 +746,7 @@ class Controller(object):
         vel_error = self.transform_point(vel_error, "world", "world_rot")
         
         yaw_error_prev = self.yaw_error_prev
-        yaw error = ((((yaw_desired - self.drone_yaw_est) -
+        yaw_error = ((((yaw_desired - self.drone_yaw_est) -
                          np.pi) % (2*np.pi)) - np.pi)
 
         fb_cmd.linear.x = max(- self.max_input, min(self.max_input, (
@@ -1115,12 +1118,26 @@ class Controller(object):
 
         self.vhat_vector_pub.publish(self.vhat_vector)
 
+    def publish_obst_room(self, empty):
+        '''Publish static obstacles as well as the boundary of the room.
+'''
+        # Delete markers
+        marker = Marker()
+        marker.ns = "obstacles"
+        marker.action = 3 # 3 deletes markers
+        self.rviz_obst.markers = [marker]
+        self.obst_pub.publish(self.rviz_obst)
+
+        self.reset_traj_markers()
+        self.obst_pub.publish(self.rviz_obst)
+        self.draw_room_contours()
+
     def draw_ctrl_path(self):
         '''Publish real x and y trajectory to topic for visualisation in
         rviz.
         '''
         self.drawn_path.header.stamp = rospy.get_rostime()
-        for i in range(0,len(self.drawn_pos_x)+1)
+        for i in range(0,len(self.drawn_pos_x)+1):
             point = Point(x=self.drawn_pos_x[i],
                           y=self.drawn_pos_y[i],
                           z=self.drawn_pos_z[i])

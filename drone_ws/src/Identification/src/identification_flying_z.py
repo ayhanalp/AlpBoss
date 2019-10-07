@@ -35,11 +35,11 @@ class Ident(object):
         print 'len self.input', len(self.input)
         self.input = self.input*nrofcycles
         self.span = len(self.input)
-        self.input_rec = np.zeros(self.span*50)
-        self.output_x = np.zeros(self.span*50)
-        self.output_y = np.zeros(self.span*50)
-        self.output_z = np.zeros(self.span*50)
-        self.time = np.zeros(self.span*50)
+        self.input_rec = np.zeros(self.span*2)
+        self.output_x = np.zeros(self.span*2)
+        self.output_y = np.zeros(self.span*2)
+        self.output_z = np.zeros(self.span*2)
+        self.time = np.zeros(self.span*2)
         self.input_cmd = Twist()
         self.measuring = False
 

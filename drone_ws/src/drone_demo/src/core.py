@@ -50,10 +50,8 @@ class Demo(object):
             "invalid measurement": ["emergency"],
             "take-off": ["take-off"],
             "land": ["land"],
-            "track drawn trajectory fast": ["build fast trajectory",
-                                            "follow path"],
-            "track drawn trajectory slow": ["build slow trajectory",
-                                            "follow path"]}
+            "track drawn trajectory fast": ["take-off","build fast trajectory", "follow path", "land"],
+            "track drawn trajectory slow": ["take-off","build slow trajectory", "follow path", "land"]}
 
         self.pose_pub = rospy.Publisher(
             'world_model/yhat', PointStamped, queue_size=1)
@@ -100,6 +98,7 @@ class Demo(object):
                     self.state = state
                     print cyan(' Core state changed to: ', self.state)
                     self.fsm_state.publish(state)
+                    print 'published new state', state
 
                     # IRRELEVANT WHEN NOT USING OMGTOOLS
                     # # Omg tools should return to its own standby status unless
@@ -125,13 +124,14 @@ class Demo(object):
                     self.state_finish = False
 
                 # OMG STUFF
+                    leave_omg = False
                 #     leave_omg = (
                 #         self.state == "omg standby" and not self.omg_standby)
                 #     # User forces leaving omg with state_button or other new task
                 #     # received --> leave the for loop for the current task.
-                #     if (leave_omg or self.new_task):
-                #         # print cyan('---- Broke for loop ----')
-                #         break
+                    if (leave_omg or self.new_task):
+                        # print cyan('---- Broke for loop ----')
+                        break
 
                 # # Make sure that omg-tools task is repeated until force quit.
                 # if self.omg_standby:
@@ -290,8 +290,9 @@ class Demo(object):
     def ctrl_state_finish(self, empty):
         '''Checks whether controller has finished the current state.
         '''
+        print 'ctrl state finish received'
         self.state_finish = True
-
+        print 'ctrl state finish'
 
     def transform_point(self, point, _from, _to):
         '''Transforms point (geometry_msgs/PointStamped) from frame "_from" to

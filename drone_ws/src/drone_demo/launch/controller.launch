@@ -1,6 +1,6 @@
 <launch>
 
-  <node name="controller" pkg="bebop_demo" type="controller.py" output="screen"/>
+  <node name="controller" pkg="drone_demo" type="controller.py" output="screen"/>
 
   <param name="controller/sample_time" value="0.02" />
   <param name="controller/LPF_cutoff" value="0.7" />
