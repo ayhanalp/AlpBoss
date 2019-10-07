@@ -22,19 +22,6 @@ import tf2_geometry_msgs as tf2_geom
 from fabulous.color import (highlight_red, highlight_green, highlight_blue,
                             green, yellow, highlight_yellow)
 
-# Currently working on: 
-
-
-# TODO: 
-#  - flight status CHECK
-#  - control authority service call CHECK
-#  - copy controls from identification CHECK
-#  - safety brake CHECK
-#  - model parameters for dji CHECK
-#  - replace trackpad with topic for rqt CHECK
-#  - PIDs 
-#  - yaw control PID
-
 
 class Controller(object):
 
@@ -203,6 +190,10 @@ class Controller(object):
 
         self.pos_nrm_tol = rospy.get_param(
                                        'controller/goal_reached_pos_tol', 0.05)
+
+        self.room_width = 1000.
+        self.room_height = 1000.
+        self.room_depth = 1000.
 
         # Setup low pass filter for trajectory drawing task.
         cutoff_freq_LPF = rospy.get_param('controller/LPF_cutoff', 0.5)
@@ -387,29 +378,37 @@ class Controller(object):
             self.max_vel = rospy.get_param('motionplanner/vmax_low', 0.5)
 
 
-        # CREATE TRAJECTORY HERE!
-        #
-        # ...
+        # CREATE HARDCODED TRAJECTORY HERE!
+        v_xy = 10.
+        v_z  = 2.
+        A = 10
+        w = 0.5
+        start_pos = self.drone_pose_est.point
+        
+        t = [i/50. for i in range(0,5000)]
+        self.drawn_pos_x = [start_pos.x + A*np.sin(w*ti) for ti in t]
+        self.drawn_pos_y = [start_pos.y + A*np.cos(w*ti) for ti in t]
+        self.drawn_pos_z = [start_pos.z + v_z*ti for ti in t]
 
 
 
-
-
+        # Show the new trajectory in rviz.
+        self.draw_ctrl_path()
 
 
         # Clip positions to make sure path does not lie outside room.
-        self.drawn_pos_x = [
-                    max(- (self.room_width/2. - self.drone_radius),
-                        min((self.room_width/2. - self.drone_radius),
-                        (elem))) for elem in self.drawn_pos_x]
-        self.drawn_pos_y = [
-                    max(- (self.room_depth/2. - self.drone_radius),
-                        min((self.room_depth/2. - self.drone_radius),
-                        (elem))) for elem in self.drawn_pos_y]
-        self.drawn_pos_z = [
-                    max((self.drone_radius * 2.5),
-                        min((self.room_height - self.drone_radius),
-                        (elem))) for elem in self.drawn_pos_z]
+        # self.drawn_pos_x = [
+        #             max(- (self.room_width/2. - self.drone_radius),
+        #                 min((self.room_width/2. - self.drone_radius),
+        #                 (elem))) for elem in self.drawn_pos_x]
+        # self.drawn_pos_y = [
+        #             max(- (self.room_depth/2. - self.drone_radius),
+        #                 min((self.room_depth/2. - self.drone_radius),
+        #                 (elem))) for elem in self.drawn_pos_y]
+        # self.drawn_pos_z = [
+        #             max((self.drone_radius * 2.5),
+        #                 min((self.room_height - self.drone_radius),
+        #                 (elem))) for elem in self.drawn_pos_z]
 
         # Add padding to path for filtering purposes
         padding = 10
@@ -1116,23 +1115,18 @@ class Controller(object):
 
         self.vhat_vector_pub.publish(self.vhat_vector)
 
-    # REPLACE WITH DRAWING OF PREDEFINED TRAJECTORY
-    # def draw_ctrl_path(self):
-    #     '''Publish real x and y trajectory to topic for visualisation in
-    #     rviz.
-    #     '''
-    #     self.drawn_path.header.stamp = rospy.get_rostime()
+    def draw_ctrl_path(self):
+        '''Publish real x and y trajectory to topic for visualisation in
+        rviz.
+        '''
+        self.drawn_path.header.stamp = rospy.get_rostime()
+        for i in range(0,len(self.drawn_pos_x)+1)
+            point = Point(x=self.drawn_pos_x[i],
+                          y=self.drawn_pos_y[i],
+                          z=self.drawn_pos_z[i])
+        self.drawn_path.points.append(point)
 
-    #     point = Point(x=self.ctrl_l_pos.position.x,
-    #                   y=self.ctrl_l_pos.position.y,
-    #                   z=self.ctrl_l_pos.position.z)
-    #     self.drawn_path.points.append(point)
-
-    #     self.drawn_pos_x += [point.x]
-    #     self.drawn_pos_y += [point.y]
-    #     self.drawn_pos_z += [point.z]
-
-    #     self.trajectory_drawn.publish(self.drawn_path)
+        self.trajectory_drawn.publish(self.drawn_path)
 
     def draw_smoothed_path(self):
         '''Publish the smoothed x and y trajectory to topic for visualisation

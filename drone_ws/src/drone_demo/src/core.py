@@ -52,7 +52,7 @@ class Demo(object):
             "land": ["land"],
             "track drawn trajectory fast": ["build fast trajectory",
                                             "follow path"],
-            "track drawn trajectory slow": ["land", "build slow trajectory",
+            "track drawn trajectory slow": ["build slow trajectory",
                                             "follow path"]}
 
         self.pose_pub = rospy.Publisher(
