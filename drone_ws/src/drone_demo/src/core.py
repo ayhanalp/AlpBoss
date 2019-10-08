@@ -50,8 +50,14 @@ class Demo(object):
             "invalid measurement": ["emergency"],
             "take-off": ["take-off"],
             "land": ["land"],
-            "track drawn trajectory fast": ["take-off","build fast trajectory", "follow path", "land"],
-            "track drawn trajectory slow": ["take-off","build slow trajectory", "follow path", "land"]}
+            "track drawn trajectory fast": ["take-off",
+                                            "build fast trajectory",
+                                            "follow path",
+                                            "land"],
+            "track drawn trajectory slow": ["take-off",
+                                            "build slow trajectory",
+                                            "follow path",
+                                            "land"]}
 
         self.pose_pub = rospy.Publisher(
             'world_model/yhat', PointStamped, queue_size=1)
@@ -75,7 +81,7 @@ class Demo(object):
         rospy.Subscriber(
             '/dji_sdk/flight_status', UInt8, self.get_flight_status)
         rospy.Subscriber(
-            '/dji_sdk/battery_state',BatteryState, self.get_battery_state)
+            '/dji_sdk/battery_state', BatteryState, self.get_battery_state)
 
         self._get_pose_service = None
 
@@ -100,8 +106,8 @@ class Demo(object):
                     self.fsm_state.publish(state)
 
                     # IRRELEVANT WHEN NOT USING OMGTOOLS
-                    # # Omg tools should return to its own standby status unless
-                    # # the state_button has been pressed.
+                    # # Omg tools should return to its own standby status
+                    # #  unless the state_button has been pressed.
                     # if self.state in {"omg standby", "omg fly"}:
                     #     self.omg_standby = True
                     # else:
@@ -126,8 +132,9 @@ class Demo(object):
                     leave_omg = False
                 #     leave_omg = (
                 #         self.state == "omg standby" and not self.omg_standby)
-                #     # User forces leaving omg with state_button or other new task
-                #     # received --> leave the for loop for the current task.
+                #     # User forces leaving omg with state_button or other new
+                #     # task received --> leave the for loop for the current
+                #     # task.
                     if (leave_omg or self.new_task):
                         # print cyan('---- Broke for loop ----')
                         break
@@ -135,7 +142,7 @@ class Demo(object):
                 # # Make sure that omg-tools task is repeated until force quit.
                 # if self.omg_standby:
                 #     self.new_task = True
-                
+
                 # Only publish standby state when task is finished.
                 # Except for repetitive tasks (back to first state in task).
                 if not self.new_task:
@@ -273,7 +280,6 @@ class Demo(object):
             self.airborne = False
         elif flight_status.data == 3:
             self.airborne = True
-
 
     # REPLACE WITH DJI BATTERY STATE INFO (dji sdk probably)
     def get_battery_state(self, battery):

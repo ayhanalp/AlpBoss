@@ -80,9 +80,9 @@ class Controller(object):
         self.A[6:9, 6:9] = Az
 
         self.B = np.zeros([9, 3])
-        self.B[0, 0] = 0.25  #Bx
-        self.B[3, 1] = 0.25  #By
-        self.B[6, 2] = 0.50  #Bz
+        self.B[0, 0] = 0.25  # Bx
+        self.B[3, 1] = 0.25  # By
+        self.B[6, 2] = 0.50  # Bz
 
         self.C = np.zeros([3, 9])
         Cx = [0.137390474398463,
@@ -252,7 +252,8 @@ class Controller(object):
     def _request_ctrl_authority(self):
         '''Service call to dji sdk to obtain control authority.
         '''
-        rospy.wait_for_service("/dji_sdk/sdk_control_authority",timeout=self.service_timeout)
+        rospy.wait_for_service(
+            "/dji_sdk/sdk_control_authority", timeout=self.service_timeout)
         try:
             ctrl_auth = rospy.ServiceProxy(
                 "/dji_sdk/sdk_control_authority", SDKControlAuthority)
@@ -383,24 +384,20 @@ class Controller(object):
         else:
             self.max_vel = rospy.get_param('motionplanner/vmax_low', 0.5)
 
-
         # CREATE HARDCODED TRAJECTORY HERE!
         v_xy = 10.
-        v_z  = 2.
+        v_z = 2.
         A = 10
         w = 0.5
         start_pos = self.drone_pose_est.point
 
-        t = [i/50. for i in range(0,5000)]
+        t = [i/50. for i in range(0, 5000)]
         self.drawn_pos_x = [start_pos.x + A*np.sin(w*ti) for ti in t]
         self.drawn_pos_y = [start_pos.y + A*np.cos(w*ti) for ti in t]
         self.drawn_pos_z = [start_pos.z + v_z*ti for ti in t]
 
-
-
         # Show the new trajectory in rviz.
         self.draw_ctrl_path()
-
 
         # Clip positions to make sure path does not lie outside room.
         # self.drawn_pos_x = [
@@ -640,8 +637,8 @@ class Controller(object):
     ####################
 
     def send_input(self, input_cmd):
-        '''Publish input command both as a Twist() (old bebop style,
-        needed for Kalman) and as a sensor_msgs/Joy msg for DJI drone.
+        '''Publish input command both as a Twist() (old bebop style) and as a
+        sensor_msgs/Joy message for DJI drone.
 
         input_cmd: Twist()
         '''
@@ -649,10 +646,10 @@ class Controller(object):
         self.full_cmd.header.stamp = rospy.Time.now()
         self.cmd_vel.publish(self.full_cmd.twist)
 
-        flag = np.uint8(self.VERTICAL_VEL|
-                        self.HORIZONTAL_ANGLE|
-                        self.YAW_RATE|
-                        self.HORIZONTAL_BODY|
+        flag = np.uint8(self.VERTICAL_VEL |
+                        self.HORIZONTAL_ANGLE |
+                        self.YAW_RATE |
+                        self.HORIZONTAL_BODY |
                         self.STABLE_ENABLE)
 
         full_cmd_dji = Joy()
@@ -802,7 +799,7 @@ class Controller(object):
         # This service is provided as soon as vive is ready.
         print 'waiting for service'
         rospy.wait_for_service(
-            "/world_model/get_pose",timeout=self.service_timeout)
+            "/world_model/get_pose", timeout=self.service_timeout)
         try:
             pose_est = rospy.ServiceProxy(
                 "/world_model/get_pose", GetPoseEst)
@@ -1127,11 +1124,11 @@ class Controller(object):
 
     def publish_obst_room(self, empty):
         '''Publish static obstacles as well as the boundary of the room.
-'''
+        '''
         # Delete markers
         marker = Marker()
         marker.ns = "obstacles"
-        marker.action = 3 # 3 deletes markers
+        marker.action = 3  # 3 deletes markers
         self.rviz_obst.markers = [marker]
         self.obst_pub.publish(self.rviz_obst)
 
@@ -1144,7 +1141,7 @@ class Controller(object):
         rviz.
         '''
         self.drawn_path.header.stamp = rospy.get_rostime()
-        for i in range(0,len(self.drawn_pos_x)+1):
+        for i in range(0, len(self.drawn_pos_x)+1):
             point = Point(x=self.drawn_pos_x[i],
                           y=self.drawn_pos_y[i],
                           z=self.drawn_pos_z[i])
