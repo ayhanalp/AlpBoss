@@ -50,8 +50,14 @@ class Demo(object):
             "invalid measurement": ["emergency"],
             "take-off": ["take-off"],
             "land": ["land"],
-            "track drawn trajectory fast": ["take-off","build fast trajectory", "follow path", "land"],
-            "track drawn trajectory slow": ["take-off","build slow trajectory", "follow path", "land"]}
+            "track drawn trajectory fast": ["take-off",
+                                            "build fast trajectory",
+                                            "follow path",
+                                            "land"],
+            "track drawn trajectory slow": ["take-off",
+                                            "build slow trajectory",
+                                            "follow path",
+                                            "land"]}
 
         self.pose_pub = rospy.Publisher(
             'world_model/yhat', PointStamped, queue_size=1)
@@ -75,7 +81,7 @@ class Demo(object):
         rospy.Subscriber(
             '/dji_sdk/flight_status', UInt8, self.get_flight_status)
         rospy.Subscriber(
-            '/dji_sdk/battery_state',BatteryState, self.get_battery_state)
+            '/dji_sdk/battery_state', BatteryState, self.get_battery_state)
 
         self._get_pose_service = None
 
@@ -100,8 +106,8 @@ class Demo(object):
                     self.fsm_state.publish(state)
 
                     # IRRELEVANT WHEN NOT USING OMGTOOLS
-                    # # Omg tools should return to its own standby status unless
-                    # # the state_button has been pressed.
+                    # # Omg tools should return to its own standby status
+                    # #  unless the state_button has been pressed.
                     # if self.state in {"omg standby", "omg fly"}:
                     #     self.omg_standby = True
                     # else:
@@ -127,8 +133,9 @@ class Demo(object):
                     leave_omg = False
                 #     leave_omg = (
                 #         self.state == "omg standby" and not self.omg_standby)
-                #     # User forces leaving omg with state_button or other new task
-                #     # received --> leave the for loop for the current task.
+                #     # User forces leaving omg with state_button or other new
+                #     # task received --> leave the for loop for the current
+                #     # task.
                     if (leave_omg or self.new_task):
                         # print cyan('---- Broke for loop ----')
                         break
@@ -136,15 +143,16 @@ class Demo(object):
                 # # Make sure that omg-tools task is repeated until force quit.
                 # if self.omg_standby:
                 #     self.new_task = True
-                
+
                 # Only publish standby state when task is finished.
                 # Except for repetitive tasks (back to first state in task).
                 if not self.new_task:
                     self.state = "standby"
                     self.fsm_state.publish("standby")
                     print cyan(' Core state changed to: ', "standby")
-            
-            print 'core sleeping', self.state_button_held
+
+            #print 'core sleeping'
+
             rospy.sleep(0.1)
 
     def localization_ready(self, *_):
@@ -233,7 +241,7 @@ class Demo(object):
         '''Check if menu button is pressed and switch to take-off or land
         sequence depending on last task that was executed.
         '''
-        if pressed.data and not self.menu_button_held:
+        if pressed.data:
             if self.airborne:
                 self.state_sequence = self.task_dict.get("land", [])
             else:
@@ -242,9 +250,6 @@ class Demo(object):
             print cyan(
                 ' Bebop_core received a new task: ',
                 self.state_sequence[0])
-            self.menu_button_held = True
-        elif not pressed.data and self.menu_button_held:
-            self.menu_button_held = False
 
 ####################
 # Helper functions #
@@ -254,19 +259,11 @@ class Demo(object):
         '''When state_button is pressed changes change_state variable
         to true to allow fsm to switch states in state sequence.
         '''
-        print 'in switch state function', state_button_pressed.data, self.state_button_held
-        if (state_button_pressed.data and not self.state_button_held) and (
+        if state_button_pressed.data and (
                 self.state not in {"standby", "initialization"}):
-            self.state_button_held = True
-            if self.state == "omg standby":
-                self.omg_standby = False
-                self.new_task = False
-            print 'change state'
+
             self.change_state = True
             print highlight_blue(' Switching to next state ')
-
-        elif not state_button_pressed.data and self.state_button_held:
-            self.state_button_held = False
 
     def get_flight_status(self, flight_status):
         '''Checks whether the drone is standing on the ground or flying and
@@ -282,7 +279,8 @@ class Demo(object):
         when the battery voltage gets low.
         '''
         if ((battery.percentage <= 0.2) and ((battery.percentage % 5) == 0)):
-            print 'battery.percent', battery.percentage, (battery.percentage % 5)
+            print 'battery.percent', battery.percentage, (
+                battery.percentage % 5)
             print highlight_yellow(
                         ' Battery voltage low -- ', battery.percentage,
                         '% left, switch to a freshly charged battery! ')
