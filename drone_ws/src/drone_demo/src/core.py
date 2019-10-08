@@ -117,6 +117,7 @@ class Demo(object):
                                 self.change_state or task_final_state)) or
                                self.new_task or rospy.is_shutdown()):
                         # Remaining in state. Allow state action to continue.
+                        print 'core sleeping', self.state_finish, self. change_state
                         rospy.sleep(0.1)
 
                     self.change_state = False
@@ -143,7 +144,7 @@ class Demo(object):
                     self.fsm_state.publish("standby")
                     print cyan(' Core state changed to: ', "standby")
             
-            #print 'core sleeping'
+            print 'core sleeping', self.state_button_held
             rospy.sleep(0.1)
 
     def localization_ready(self, *_):
@@ -228,7 +229,6 @@ class Demo(object):
         self.new_task = True
         print cyan(' Core received a new task: ', task.data)
 
-    # REPLACE WITH TAKE-OFF/LANDING PROCEDURE DJI
     def take_off_land(self, pressed):
         '''Check if menu button is pressed and switch to take-off or land
         sequence depending on last task that was executed.
@@ -254,12 +254,14 @@ class Demo(object):
         '''When state_button is pressed changes change_state variable
         to true to allow fsm to switch states in state sequence.
         '''
+        print 'in switch state function', state_button_pressed.data, self.state_button_held
         if (state_button_pressed.data and not self.state_button_held) and (
                 self.state not in {"standby", "initialization"}):
             self.state_button_held = True
             if self.state == "omg standby":
                 self.omg_standby = False
                 self.new_task = False
+            print 'change state'
             self.change_state = True
             print highlight_blue(' Switching to next state ')
 
@@ -275,8 +277,6 @@ class Demo(object):
         elif flight_status.data == 3:
             self.airborne = True
 
-
-    # REPLACE WITH DJI BATTERY STATE INFO (dji sdk probably)
     def get_battery_state(self, battery):
         '''Checks the discharge state of the battery and gives a warning
         when the battery voltage gets low.
