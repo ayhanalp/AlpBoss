@@ -45,12 +45,14 @@ class Perception(object):
     def measurement_check(self):
         '''Monitor function: check GPS health.
         '''
-        measurement_valid = (self.gps_health >= 3) 
+        measurement_valid = False
+        if self.gps_health:
+            measurement_valid = (self.gps_health >= 3)
 
         return measurement_valid
 
     def store_gps_health(self, health):
-        self.gps_health = health 
+        self.gps_health = health
 
     def get_transform(self, _from, _to):
         '''
