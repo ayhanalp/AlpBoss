@@ -142,12 +142,13 @@ class Demo(object):
                     self.state = "standby"
                     self.fsm_state.publish("standby")
                     print cyan(' Core state changed to: ', "standby")
-
+            
+            #print 'core sleeping'
             rospy.sleep(0.1)
 
     def localization_ready(self, *_):
         '''
-        Provides get_pose service when vive is calibrated.
+        Provides get_pose service when localization is calibrated.
         '''
         self._get_pose_service = rospy.Service(
             "/world_model/get_pose", GetPoseEst, self.get_kalman_pos_est)

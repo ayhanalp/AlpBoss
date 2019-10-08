@@ -257,7 +257,6 @@ class Controller(object):
             ctrl_auth = rospy.ServiceProxy(
                 "/dji_sdk/sdk_control_authority", SDKControlAuthority)
             ctrl_success = ctrl_auth(1)
-            print 'ctrl_success', ctrl_success
         except rospy.ServiceException, e:
             rospy.logerr('Ctrl authority service call failed: %s' % e)
             print 'Ctrl authority service call failed: %s' % e
@@ -330,7 +329,6 @@ class Controller(object):
     def hover(self, vel_desired=Twist()):
         '''Drone keeps itself in same location through a PID controller.
         '''
-        print 'hovering'
         if self.airborne:
             (self.drone_pose_est, self.drone_vel_est, self.drone_yaw_est,
                 measurement_valid) = self.get_pose_est()
@@ -370,7 +368,7 @@ class Controller(object):
             except rospy.ServiceException, e:
                 print highlight_red('Land service call failed: %s') % e
                 land_success = False
-        rospy.sleep(3.)
+        rospy.sleep(10.)
 
     def build_traj(self):
         '''Build and pre-process a trajectory.
@@ -389,7 +387,7 @@ class Controller(object):
         v_z  = 2.
         A = 10
         w = 0.5
-        start_pos = self.drone_pose_est.point
+        start_pos = self.drone_pose_est.position
         
         t = [i/50. for i in range(0,5000)]
         self.drawn_pos_x = [start_pos.x + A*np.sin(w*ti) for ti in t]
@@ -657,10 +655,10 @@ class Controller(object):
 
         full_cmd_dji = Joy()
         full_cmd_dji.header = self.full_cmd.header
-        full_cmd_dji.axes = [full_cmd.linear.y,
-                             full_cmd.linear.x,
-                             -full_cmd.linear.z,
-                             -full_cmd.angular.z,
+        full_cmd_dji.axes = [-input_cmd.linear.y,
+                             input_cmd.linear.x,
+                             input_cmd.linear.z,
+                             input_cmd.angular.z,
                              flag]
 
         self.cmd_vel_dji.publish(full_cmd_dji)
@@ -751,6 +749,7 @@ class Controller(object):
         yaw_error_prev = self.yaw_error_prev
         yaw_error = ((((yaw_desired - self.drone_yaw_est) -
                          np.pi) % (2*np.pi)) - np.pi)
+        print 'des', yaw_desired, 'est', self.drone_yaw_est, 'error', yaw_error 
 
         fb_cmd.linear.x = max(- self.max_input, min(self.max_input, (
                 self.fb_cmd_prev.linear.x +
@@ -781,7 +780,7 @@ class Controller(object):
                 (self.Kp_yaw + self.Ki_yaw*self._sample_time/2) *
                 yaw_error +
                 (-self.Kp_z + self.Ki_z*self._sample_time/2) *
-                yaw_error_prev.point.z)))
+                yaw_error_prev)))
 
 
         self.pos_error_prev = pos_error
@@ -797,8 +796,7 @@ class Controller(object):
     def get_pose_est(self):
         '''Retrieves a new pose estimate from world model.
         '''
-        # This service is provided as soon as vive is ready.
-        print 'waiting for service'
+        # This service is provided as soon as localization is ready.
         rospy.wait_for_service(
             "/world_model/get_pose",timeout=self.service_timeout)
         try:
@@ -1127,14 +1125,14 @@ class Controller(object):
         '''Publish static obstacles as well as the boundary of the room.
 '''
         # Delete markers
-        marker = Marker()
-        marker.ns = "obstacles"
-        marker.action = 3 # 3 deletes markers
-        self.rviz_obst.markers = [marker]
-        self.obst_pub.publish(self.rviz_obst)
+        #marker = Marker()
+        #marker.ns = "obstacles"
+        #marker.action = 3 # 3 deletes markers
+        #self.rviz_obst.markers = [marker]
+        #self.obst_pub.publish(self.rviz_obst)
 
         self.reset_traj_markers()
-        self.obst_pub.publish(self.rviz_obst)
+        #self.obst_pub.publish(self.rviz_obst)
         self.draw_room_contours()
 
     def draw_ctrl_path(self):

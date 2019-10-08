@@ -31,6 +31,7 @@ class GpsLocalization(object):
         '''
 				
         self.init = True
+        self.service_timeout = 10.
         rospy.init_node('gps_localization')
 
         Ts = rospy.get_param('gps_localization/sample_time', 0.02)
@@ -75,8 +76,8 @@ class GpsLocalization(object):
             self.rate.sleep()
 
     def calibrate(self, *_):
-        print 'waiting for service local pos ref'
-        rospy.wait_for_service("/dji_sdk/set_local_pos_ref")
+        print blue(' Waiting for service local pos ref...')
+        rospy.wait_for_service("/dji_sdk/set_local_pos_ref",timeout=self.service_timeout)
         try:
             set_local_pos_ref = rospy.ServiceProxy(
                 "/dji_sdk/set_local_pos_ref",SetLocalPosRef)
@@ -111,6 +112,9 @@ class GpsLocalization(object):
         while self.pose_d_in_w == PoseStamped():
             rospy.sleep(0.1)
         self.tf_d_in_w = self.pose_to_tf(self.pose_d_in_w, "drone")
+        if self.tf_d_in_w.transform.rotation == Quaternion():
+            print highlight_red(' Invalid pose measurement - check if drone is properly connected and restart')
+            return
         self.broadc.sendTransform(self.tf_d_in_w)
 
         self.init = False       

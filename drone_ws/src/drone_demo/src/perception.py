@@ -27,6 +27,7 @@ class Perception(object):
         self.tf_t_in_w_prev = TransformStamped()
         self.init = True
         self.vive_calibrating = False
+        self.gps_health = 0
 
         self.tfBuffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tfBuffer)
