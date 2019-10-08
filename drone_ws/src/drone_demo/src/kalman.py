@@ -177,11 +177,11 @@ class Kalman(object):
         u = np.array([[input_cmd.linear.x],
                       [input_cmd.linear.y],
                       [input_cmd.linear.z]])
-        X = (np.matmul(Ts*self.A + np.identity(8), X)
-             + np.matmul(Ts*self.B, u))
+        X = (np.dot(Ts*self.A + np.identity(8), X)
+             + np.dot(Ts*self.B, u))
 
-        Y = np.matmul(self.C, X)
-        Y_vel = np.matmul(self.C_vel, X) + np.matmul(self.D_vel, u)
+        Y = np.dot(self.C, X)
+        Y_vel = np.dot(self.C_vel, X) + np.dot(self.D_vel, u)
 
         yhat_r = PointStamped()
         yhat_r.header.frame_id = "world_rot"
@@ -195,7 +195,7 @@ class Kalman(object):
         vhat_r.point.y = Y_vel[1, 0]
         vhat_r.point.z = Y_vel[2, 0]
 
-        Phat = np.matmul(Ts*self.A + np.identity(8), np.matmul(
+        Phat = np.dot(Ts*self.A + np.identity(8), np.dot(
             Phat, np.transpose(Ts*self.A + np.identity(8)))) + self.Q
 
         return X, yhat_r, vhat_r, Phat
@@ -211,17 +211,17 @@ class Kalman(object):
                       [pos_meas.pose.position.y],
                       [pos_meas.pose.position.z]])
 
-        nu = y - np.matmul(self.C, X)
-        S = np.matmul(self.C, np.matmul(
+        nu = y - np.dot(self.C, X)
+        S = np.dot(self.C, np.dot(
             Phat, np.transpose(self.C))) + self.R
-        L = np.matmul(Phat, np.matmul(
+        L = np.dot(Phat, np.dot(
             np.transpose(self.C), np.linalg.inv(S)))
-        X = X + np.matmul(L, nu)
-        Phat = np.matmul(
-            (np.identity(8) - np.matmul(L, self.C)), Phat)
+        X = X + np.dot(L, nu)
+        Phat = np.dot(
+            (np.identity(8) - np.dot(L, self.C)), Phat)
         self.Phat_t0 = Phat
 
-        Y = np.matmul(self.C, X)
+        Y = np.dot(self.C, X)
 
         yhat_r.point.x = Y[0, 0]
         yhat_r.point.y = Y[1, 0]
