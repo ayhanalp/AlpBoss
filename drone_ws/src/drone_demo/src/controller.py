@@ -177,7 +177,7 @@ class Controller(object):
         self.Kd_y = rospy.get_param('controller/Kd_y', 0.6864)
         self.Kp_z = rospy.get_param('controller/Kp_z', 0.5)
         self.Ki_z = rospy.get_param('controller/Ki_z', 1.5792)
-        self.Kd_z = rospy.get_param('controller/Kd_z', 1.5792)       
+        self.Kd_z = rospy.get_param('controller/Kd_z', 1.5792)
         self.Kp_yaw = rospy.get_param('controller/Kp_yaw', 0.3)
         self.Ki_yaw = rospy.get_param('controller/Ki_yaw', 0.3)
         self.Kd_yaw = rospy.get_param('controller/Kd_yaw', 0.3)
@@ -388,7 +388,7 @@ class Controller(object):
         A = 10
         w = 0.5
         start_pos = self.drone_pose_est.position
-        
+
         t = [i/50. for i in range(0,5000)]
         self.drawn_pos_x = [start_pos.x + A*np.sin(w*ti) for ti in t]
         self.drawn_pos_y = [start_pos.y + A*np.cos(w*ti) for ti in t]
@@ -640,7 +640,7 @@ class Controller(object):
     def send_input(self, input_cmd):
         '''Publish input command both as a Twist() (old bebop style,
         needed for Kalman) and as a sensor_msgs/Joy msg for DJI drone.
-        
+
         input_cmd: Twist()
         '''
         self.full_cmd.twist = input_cmd
@@ -668,7 +668,7 @@ class Controller(object):
         rotated world frame world_rot.
         '''
         self.ff_velocity = self.transform_twist(vel, "world", "world_rot")
-        
+
     def convert_vel_cmd(self):
         '''Converts a velocity command to a desired input angle according to
         the state space representation of the inverse velocity model.
@@ -742,14 +742,14 @@ class Controller(object):
         vel_error.header.frame_id = "world"
         vel_error.point.x = vel_desired.linear.x - self.drone_vel_est.x
         vel_error.point.y = vel_desired.linear.y - self.drone_vel_est.y
+        vel_error.point.z = vel_desired.linear.z - self.drone_vel_est.z
 
         pos_error = self.transform_point(pos_error, "world", "world_rot")
         vel_error = self.transform_point(vel_error, "world", "world_rot")
-        
+
         yaw_error_prev = self.yaw_error_prev
         yaw_error = ((((yaw_desired - self.drone_yaw_est) -
-                         np.pi) % (2*np.pi)) - np.pi)
-        print 'des', yaw_desired, 'est', self.drone_yaw_est, 'error', yaw_error 
+                       np.pi) % (2*np.pi)) - np.pi)
 
         fb_cmd.linear.x = max(- self.max_input, min(self.max_input, (
                 self.fb_cmd_prev.linear.x +
@@ -767,20 +767,22 @@ class Controller(object):
                 pos_error_prev.point.y +
                 self.Kd_y*(vel_error.point.y - vel_error_prev.point.y))))
 
-        fb_cmd.linear.z = max(- self.max_z_input, min(self.max_z_input, (
+        fb_cmd.linear.z = max(- self.max_input, min(self.max_input, (
                 self.fb_cmd_prev.linear.z +
                 (self.Kp_z + self.Ki_z*self._sample_time/2) *
                 pos_error.point.z +
                 (-self.Kp_z + self.Ki_z*self._sample_time/2) *
-                pos_error_prev.point.z)))
+                pos_error_prev.point.z +
+                self.Kd_z*(vel_error.point.z - vel_error_prev.point.z))))
 
-        # UNDER CONSTRUCTION
-        fb_cmd.angular.z = max(- self.max_yaw_input, min(self.max_yaw_input, (
-                self.fb_cmd_prev.angular.z +
-                (self.Kp_yaw + self.Ki_yaw*self._sample_time/2) *
-                yaw_error +
-                (-self.Kp_z + self.Ki_z*self._sample_time/2) *
-                yaw_error_prev)))
+        # UNDER CONSTRUCTION - TODO: yaw velocity estimator
+        # fb_cmd.angular.z = max(- self.max_input, min(self.max_input, (
+        #         self.fb_cmd_prev.linear.z +
+        #         (self.Kp_z + self.Ki_z*self._sample_time/2) *
+        #         pos_error.point.z +
+        #         (-self.Kp_z + self.Ki_z*self._sample_time/2) *
+        #         pos_error_prev.point.z +
+        #         self.Kd_z*(vel_error.point.z - vel_error_prev.point.z))))
 
 
         self.pos_error_prev = pos_error
