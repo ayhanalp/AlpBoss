@@ -149,7 +149,7 @@ class Demo(object):
                     self.state = "standby"
                     self.fsm_state.publish("standby")
                     print cyan(' Core state changed to: ', "standby")
-            
+
             #print 'core sleeping'
             rospy.sleep(0.1)
 
@@ -235,12 +235,11 @@ class Demo(object):
         self.new_task = True
         print cyan(' Core received a new task: ', task.data)
 
-    # REPLACE WITH TAKE-OFF/LANDING PROCEDURE DJI
     def take_off_land(self, pressed):
         '''Check if menu button is pressed and switch to take-off or land
         sequence depending on last task that was executed.
         '''
-        if pressed.data and not self.menu_button_held:
+        if pressed.data:
             if self.airborne:
                 self.state_sequence = self.task_dict.get("land", [])
             else:
@@ -249,9 +248,6 @@ class Demo(object):
             print cyan(
                 ' Bebop_core received a new task: ',
                 self.state_sequence[0])
-            self.menu_button_held = True
-        elif not pressed.data and self.menu_button_held:
-            self.menu_button_held = False
 
 ####################
 # Helper functions #
@@ -261,17 +257,11 @@ class Demo(object):
         '''When state_button is pressed changes change_state variable
         to true to allow fsm to switch states in state sequence.
         '''
-        if (state_button_pressed.data and not self.state_button_held) and (
+        if state_button_pressed.data and (
                 self.state not in {"standby", "initialization"}):
-            self.state_button_held = True
-            if self.state == "omg standby":
-                self.omg_standby = False
-                self.new_task = False
+
             self.change_state = True
             print highlight_blue(' Switching to next state ')
-
-        elif not state_button_pressed.data and self.state_button_held:
-            self.state_button_held = False
 
     def get_flight_status(self, flight_status):
         '''Checks whether the drone is standing on the ground or flying and
@@ -282,13 +272,13 @@ class Demo(object):
         elif flight_status.data == 3:
             self.airborne = True
 
-    # REPLACE WITH DJI BATTERY STATE INFO (dji sdk probably)
     def get_battery_state(self, battery):
         '''Checks the discharge state of the battery and gives a warning
         when the battery voltage gets low.
         '''
         if ((battery.percentage <= 0.2) and ((battery.percentage % 5) == 0)):
-            print 'battery.percent', battery.percentage, (battery.percentage % 5)
+            print 'battery.percent', battery.percentage, (
+                battery.percentage % 5)
             print highlight_yellow(
                         ' Battery voltage low -- ', battery.percentage,
                         '% left, switch to a freshly charged battery! ')

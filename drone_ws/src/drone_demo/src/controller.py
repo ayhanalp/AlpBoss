@@ -781,7 +781,6 @@ class Controller(object):
         #         pos_error_prev.point.z +
         #         self.Kd_z*(vel_error.point.z - vel_error_prev.point.z))))
 
-
         self.pos_error_prev = pos_error
         self.vel_error_prev = vel_error
         self.yaw_error_prev = yaw_error
@@ -1124,14 +1123,14 @@ class Controller(object):
         '''Publish static obstacles as well as the boundary of the room.
         '''
         # Delete markers
-        #marker = Marker()
-        #marker.ns = "obstacles"
-        #marker.action = 3 # 3 deletes markers
-        #self.rviz_obst.markers = [marker]
-        #self.obst_pub.publish(self.rviz_obst)
+        # marker = Marker()
+        # marker.ns = "obstacles"
+        # marker.action = 3 # 3 deletes markers
+        # self.rviz_obst.markers = [marker]
+        # self.obst_pub.publish(self.rviz_obst)
 
         self.reset_traj_markers()
-        #self.obst_pub.publish(self.rviz_obst)
+        # self.obst_pub.publish(self.rviz_obst)
         self.draw_room_contours()
 
     def draw_ctrl_path(self):
