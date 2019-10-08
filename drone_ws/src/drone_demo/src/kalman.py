@@ -22,6 +22,7 @@ class Kalman(object):
 
         # Assign model matrices
         self.A = model.A
+        self.dim_A = np.size(self.A, 0)
         self.B = model.B
         self.C = model.C
         self.C_vel = model.C_vel
@@ -31,7 +32,8 @@ class Kalman(object):
 
         self.X_r = np.zeros(shape=(9, 1))
         self.X_r_t0 = np.zeros(shape=(9, 1))
-        self.input_cmd_Ts = rospy.get_param('controller/sample_time', 0.02)  # s
+        self.input_cmd_Ts = rospy.get_param(
+                                           'controller/sample_time', 0.02)  # s
 
         self.Phat_t0 = np.zeros(9)
         self.Phat = np.zeros(9)
@@ -121,7 +123,6 @@ class Kalman(object):
             for i in range(vel_len - 2):
                 Ts = self.get_time_diff(
                     self.vel_list_corr[i+2], self.vel_list_corr[i+1])
-                # print '\n kalman second predict step Ts and yhat_r \n', Ts, yhat_r.point
                 (X, yhat_r, vhat_r, Phat) = self.predict_step_calc(
                     self.vel_list_corr[i+1], Ts, X, Phat)
 
@@ -132,7 +133,6 @@ class Kalman(object):
 
         # Now make prediction up to new t0 if not case 3.
         if not case3:
-            # print '\n kalman third predict step Ts and yhat_r \n', B, yhat_r.point
             (X, yhat_r, vhat_r, Phat) = self.predict_step_calc(
                 self.vel_list_corr[-1], B, X, Phat)
         else:
@@ -149,7 +149,6 @@ class Kalman(object):
 
         # Now predict until next point t that coincides with next timepoint
         # for the controller.
-        # print '\n kalman fourth predict step Ts and yhat_r \n', (1 + self.case5)*self.input_cmd_Ts - B, yhat_r_t0.point
         (X, yhat_r, vhat_r, Phat) = self.predict_step_calc(
                                 self.vel_list_corr[-1],
                                 (1 + self.case5)*self.input_cmd_Ts - B,
@@ -177,7 +176,7 @@ class Kalman(object):
         u = np.array([[input_cmd.linear.x],
                       [input_cmd.linear.y],
                       [input_cmd.linear.z]])
-        X = (np.dot(Ts*self.A + np.identity(8), X)
+        X = (np.dot(Ts*self.A + np.identity(self.dim_A), X)
              + np.dot(Ts*self.B, u))
 
         Y = np.dot(self.C, X)
@@ -195,8 +194,8 @@ class Kalman(object):
         vhat_r.point.y = Y_vel[1, 0]
         vhat_r.point.z = Y_vel[2, 0]
 
-        Phat = np.dot(Ts*self.A + np.identity(8), np.dot(
-            Phat, np.transpose(Ts*self.A + np.identity(8)))) + self.Q
+        Phat = np.dot(Ts*self.A + np.identity(self.dim_A), np.dot(
+            Phat, np.transpose(Ts*self.A + np.identity(self.dim_A)))) + self.Q
 
         return X, yhat_r, vhat_r, Phat
 
@@ -218,7 +217,7 @@ class Kalman(object):
             np.transpose(self.C), np.linalg.inv(S)))
         X = X + np.dot(L, nu)
         Phat = np.dot(
-            (np.identity(8) - np.dot(L, self.C)), Phat)
+            (np.identity(self.dim_A) - np.dot(L, self.C)), Phat)
         self.Phat_t0 = Phat
 
         Y = np.dot(self.C, X)
