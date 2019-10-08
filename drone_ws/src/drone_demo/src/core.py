@@ -63,9 +63,9 @@ class Demo(object):
         self.fsm_state.publish("initialization")
 
         rospy.Subscriber(
-            'localization/ready', Empty, self.localization_ready)
+            'gps_localization/ready', Empty, self.localization_ready)
         rospy.Subscriber(
-            'localization/pose', PoseMeas, self.new_measurement)
+            'gps_localization/pose', PoseMeas, self.new_measurement)
         rospy.Subscriber(
             'fsm/task', String, self.switch_task)
         rospy.Subscriber(
@@ -98,7 +98,6 @@ class Demo(object):
                     self.state = state
                     print cyan(' Core state changed to: ', self.state)
                     self.fsm_state.publish(state)
-                    print 'published new state', state
 
                     # IRRELEVANT WHEN NOT USING OMGTOOLS
                     # # Omg tools should return to its own standby status unless
@@ -292,7 +291,6 @@ class Demo(object):
         '''
         print 'ctrl state finish received'
         self.state_finish = True
-        print 'ctrl state finish'
 
     def transform_point(self, point, _from, _to):
         '''Transforms point (geometry_msgs/PointStamped) from frame "_from" to

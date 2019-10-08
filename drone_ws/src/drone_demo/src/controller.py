@@ -131,7 +131,7 @@ class Controller(object):
         self.pos_error_pub = rospy.Publisher(
             'controller/position_error', PointStamped, queue_size=1)
 
-        rospy.Subscriber('localization/ready', Empty,
+        rospy.Subscriber('gps_localization/ready', Empty,
                          self.publish_obst_room)
         rospy.Subscriber('fsm/state', String, self.switch_state)
         rospy.Subscriber(
@@ -160,6 +160,8 @@ class Controller(object):
 
         self.STABLE_DISABLE = 0x00
         self.STABLE_ENABLE = 0x01
+
+        self.service_timeout = 10.
 
     def _init_params(self):
         '''Initializes (reads and sets) externally configurable parameters
@@ -250,7 +252,7 @@ class Controller(object):
     def _request_ctrl_authority(self):
         '''Service call to dji sdk to obtain control authority.
         '''
-        rospy.wait_for_service("/dji_sdk/sdk_control_authority")
+        rospy.wait_for_service("/dji_sdk/sdk_control_authority",timeout=self.service_timeout)
         try:
             ctrl_auth = rospy.ServiceProxy(
                 "/dji_sdk/sdk_control_authority", SDKControlAuthority)
@@ -281,6 +283,7 @@ class Controller(object):
                 self.executing_state = True
                 # Execute state function.
                 self.state_dict[self.state]()
+                print "done executing"
                 self.executing_state = False
 
                 # State has not finished if it has been killed!
@@ -289,17 +292,17 @@ class Controller(object):
                     self.ctrl_state_finish.publish(Empty())
                     print yellow('------------------------')
                 self.state_killed = False
-
+                print 'checkpoint 1'
                 # Adjust goal to make sure hover uses PID actions to stay in
                 # current place.
                 self.full_cmd.header.stamp = rospy.Time.now()
                 (self.drone_pose_est, self.drone_vel_est,
                  self.drone_yaw_est, measurement_valid) = self.get_pose_est()
                 self.hover_setpoint.position = self.drone_pose_est.position
+                print 'ctrl - end of if state changed'
 
             if not self.state == "initialization":
                 self.hover()
-            print 'stuck'
             self.rate.sleep()
 
     def switch_state(self, state):
@@ -327,6 +330,7 @@ class Controller(object):
     def hover(self, vel_desired=Twist()):
         '''Drone keeps itself in same location through a PID controller.
         '''
+        print 'hovering'
         if self.airborne:
             (self.drone_pose_est, self.drone_vel_est, self.drone_yaw_est,
                 measurement_valid) = self.get_pose_est()
@@ -356,7 +360,6 @@ class Controller(object):
             except rospy.ServiceException, e:
                 print highlight_red('Takeoff service call failed: %s') % e
                 takeoff_success = False
-                rospy.sleep(3.)
 
         elif self.state == "land":
             self.reset_pid_gains()
@@ -367,7 +370,7 @@ class Controller(object):
             except rospy.ServiceException, e:
                 print highlight_red('Land service call failed: %s') % e
                 land_success = False
-                rospy.sleep(3.)
+        rospy.sleep(3.)
 
     def build_traj(self):
         '''Build and pre-process a trajectory.
@@ -795,7 +798,9 @@ class Controller(object):
         '''Retrieves a new pose estimate from world model.
         '''
         # This service is provided as soon as vive is ready.
-        rospy.wait_for_service("/world_model/get_pose")
+        print 'waiting for service'
+        rospy.wait_for_service(
+            "/world_model/get_pose",timeout=self.service_timeout)
         try:
             pose_est = rospy.ServiceProxy(
                 "/world_model/get_pose", GetPoseEst)
