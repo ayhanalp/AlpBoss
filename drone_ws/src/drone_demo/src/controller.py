@@ -382,7 +382,7 @@ class Controller(object):
         else:
             self.max_vel = rospy.get_param('motionplanner/vmax_low', 0.5)
 
-        # CREATE HARDCODED TRAJECTORY HERE!
+        # CREATE HARDCODED TRAJECTORY HERE! ===================================
         v_xy = 10.
         v_z = 2.
         A = 10
@@ -393,6 +393,7 @@ class Controller(object):
         self.drawn_pos_x = [start_pos.x + A*np.sin(w*ti) for ti in t]
         self.drawn_pos_y = [start_pos.y + A*np.cos(w*ti) for ti in t]
         self.drawn_pos_z = [start_pos.z + v_z*ti for ti in t]
+        # =====================================================================
 
         # Show the new trajectory in rviz.
         self.draw_ctrl_path()
@@ -973,6 +974,25 @@ class Controller(object):
         rviz, along with the current position in the omg-tools generated
         position list.
         '''
+        # Obstacles
+        self.rviz_obst = MarkerArray()
+
+        # Desired path
+        self._desired_path = Marker()
+        self._desired_path.header.frame_id = 'world'
+        self._desired_path.ns = "trajectory_desired"
+        self._desired_path.id = 0
+        self._desired_path.type = 4  # Line List.
+        self._desired_path.action = 0
+        self._desired_path.scale.x = 0.03
+        self._desired_path.color.r = 1.0
+        self._desired_path.color.g = 0.0
+        self._desired_path.color.b = 0.0
+        self._desired_path.color.a = 1.0
+        self._desired_path.lifetime = rospy.Duration(0)
+
+        self.pos_index = 0
+        self.old_len = 0
 
         # Real path
         self._real_path = Marker()
