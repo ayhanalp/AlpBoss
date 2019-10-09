@@ -151,8 +151,7 @@ class Demo(object):
                     self.fsm_state.publish("standby")
                     print cyan(' Core state changed to: ', "standby")
 
-            #print 'core sleeping'
-
+            # print 'core sleeping'
             rospy.sleep(0.1)
 
     def localization_ready(self, *_):
