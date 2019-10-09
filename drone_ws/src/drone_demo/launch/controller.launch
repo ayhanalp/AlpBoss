@@ -2,6 +2,10 @@
 
   <node name="controller" pkg="drone_demo" type="controller.py" output="screen"/>
 
+
+  <param name="motionplanner/vmax_fast" value="4." />
+  <param name="motionplanner/vmax_slow" value="10." />
+
   <param name="controller/sample_time" value="0.02" />
   <param name="controller/LPF_cutoff" value="0.7" />
   <param name="controller/LPF_order" value="3" />
@@ -49,9 +53,8 @@
   <param name='controller/Ki_tt_yaw' value="2.935114269541734" />
   <param name='controller/Kd_tt_yaw' value="2.888728331226571" />
 
-  <!-- <param name='controller/K_theta' value="0.15" /> -->
   <param name='controller/max_input' value="0.6" />
-  <param name='controller/max_z_input' value="2." />
+  <param name='controller/max_z_input' value="4." />
   <param name='controller/max_yaw_input' value="1." />
 
 </launch>

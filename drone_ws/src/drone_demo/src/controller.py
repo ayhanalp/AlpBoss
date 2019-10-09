@@ -282,16 +282,13 @@ class Controller(object):
                 self.executing_state = True
                 # Execute state function.
                 self.state_dict[self.state]()
-                print "done executing"
                 self.executing_state = False
 
                 # State has not finished if it has been killed!
                 if not self.state_killed:
-                    print 'finish pub'
                     self.ctrl_state_finish.publish(Empty())
                     print yellow('------------------------')
                 self.state_killed = False
-                print 'checkpoint 1'
                 # Adjust goal to make sure hover uses PID actions to stay in
                 # current place.
                 self.full_cmd.header.stamp = rospy.Time.now()
@@ -382,9 +379,9 @@ class Controller(object):
             self.max_vel = rospy.get_param('motionplanner/vmax_low', 0.5)
 
         # CREATE HARDCODED TRAJECTORY HERE! ===================================
-        v_xy = 20.
-        v_z = 2.
-        A = 4
+        v_xy = 10.
+        v_z = 1.
+        A = 2.
         start_pos = self.drone_pose_est.position
 
         t = [i/50. for i in range(0, 500)]
@@ -1082,11 +1079,11 @@ class Controller(object):
     def reset_traj_markers(self):
         '''Resets all Rviz markers (except for obstacles).
         '''
-        self.drawn_path.points = []
+        self.drawn_path.points = [Point(), Point()]
         self.trajectory_drawn.publish(self.drawn_path)
-        self._real_path.points = []
+        self._real_path.points = [Point(), Point()]
         self.trajectory_real.publish(self._real_path)
-        self.smooth_path.points = []
+        self.smooth_path.points = [Point(), Point()]
         self.trajectory_smoothed.publish(self.smooth_path)
         self.current_ff_vel.points = [Point(), Point()]
         self.current_ff_vel_pub.publish(self.current_ff_vel)
@@ -1161,7 +1158,6 @@ class Controller(object):
                           y=self.drawn_pos_y[i],
                           z=self.drawn_pos_z[i])
             self.drawn_path.points.append(point)
-        # print self.drawn_path
         self.trajectory_drawn.publish(self.drawn_path)
 
     def draw_smoothed_path(self):
