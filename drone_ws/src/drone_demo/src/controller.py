@@ -189,9 +189,9 @@ class Controller(object):
         self.pos_nrm_tol = rospy.get_param(
                                        'controller/goal_reached_pos_tol', 0.05)
 
-        self.room_width = 1000.
-        self.room_height = 1000.
-        self.room_depth = 1000.
+        self.room_width = 10.
+        self.room_height = 10.
+        self.room_depth = 10.
 
         # Setup low pass filter for trajectory drawing task.
         cutoff_freq_LPF = rospy.get_param('controller/LPF_cutoff', 0.5)
@@ -382,15 +382,14 @@ class Controller(object):
             self.max_vel = rospy.get_param('motionplanner/vmax_low', 0.5)
 
         # CREATE HARDCODED TRAJECTORY HERE! ===================================
-        v_xy = 10.
+        v_xy = 20.
         v_z = 2.
-        A = 10
-        w = 0.5
+        A = 4
         start_pos = self.drone_pose_est.position
 
-        t = [i/50. for i in range(0, 5000)]
-        self.drawn_pos_x = [start_pos.x + A*np.sin(w*ti) for ti in t]
-        self.drawn_pos_y = [start_pos.y + A*np.cos(w*ti) for ti in t]
+        t = [i/50. for i in range(0, 500)]
+        self.drawn_pos_x = [start_pos.x + A*np.sin(v_xy/A*ti) for ti in t]
+        self.drawn_pos_y = [start_pos.y + A*(np.cos(v_xy/A*ti)-1.) for ti in t]
         self.drawn_pos_z = [start_pos.z + v_z*ti for ti in t]
         # =====================================================================
 
@@ -513,7 +512,7 @@ class Controller(object):
         '''
         # Send velocity sample.
         self.full_cmd.header.stamp = rospy.Time.now()
-        self.cmd_vel.publish(self.full_cmd.twist)
+        self.send_input(self.full_cmd.twist)
 
         # Retrieve new pose estimate from World Model.
         # This is a pose estimate for the first following time instance [k+1]
@@ -616,8 +615,8 @@ class Controller(object):
             print yellow('=========================')
 
     def safety_brake(self):
-        '''Brake as emergency measure: Bebop brakes automatically when
-            /bebop/cmd_vel topic receives all zeros.
+        '''Brake as emergency measure: drone brakes automatically when
+           topic receives all zeros.
         '''
         self.full_cmd.twist = Twist()
         self.send_input(self.full_cmd.twist)
@@ -642,7 +641,7 @@ class Controller(object):
         '''
         self.full_cmd.twist = input_cmd
         self.full_cmd.header.stamp = rospy.Time.now()
-        self.cmd_vel.publish(self.full_cmd.twist)
+        self.cmd_vel.publish(self.full_cmd.twist)  # REMOVE THIS(?)
 
         flag = np.uint8(self.VERTICAL_VEL |
                         self.HORIZONTAL_ANGLE |
@@ -657,7 +656,6 @@ class Controller(object):
                              input_cmd.linear.z,
                              input_cmd.angular.z,
                              flag]
-
         self.cmd_vel_dji.publish(full_cmd_dji)
 
     def rotate_vel_cmd(self, vel):
@@ -1162,8 +1160,8 @@ class Controller(object):
             point = Point(x=self.drawn_pos_x[i],
                           y=self.drawn_pos_y[i],
                           z=self.drawn_pos_z[i])
-        self.drawn_path.points.append(point)
-
+            self.drawn_path.points.append(point)
+        # print self.drawn_path
         self.trajectory_drawn.publish(self.drawn_path)
 
     def draw_smoothed_path(self):
