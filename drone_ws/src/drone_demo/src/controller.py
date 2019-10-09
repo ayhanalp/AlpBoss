@@ -226,7 +226,7 @@ class Controller(object):
         self._traj_strg = {'u': [0.0], 'v': [0.0], 'w': [0.0],
                            'x': [0.0], 'y': [0.0], 'z': [0.0]}
         self.X = np.array(
-                    [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0]])
+                    [[0.], [0.], [0.], [0.], [0.], [0.], [0.], [0.], [0.]])
         self.desired_yaw = 0.
         self.drone_yaw_est = 0.
         self.pos_nrm = np.inf
@@ -473,7 +473,7 @@ class Controller(object):
         self.set_ff_pid_gains()
         # Reset ff model
         self.X = np.array(
-                    [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0]])
+                    [[0.], [0.], [0.], [0.], [0.], [0.], [0.], [0.],[0.]])
 
         # Preparing hover setpoint for when trajectory is completed.
         self._goal = Pose()
