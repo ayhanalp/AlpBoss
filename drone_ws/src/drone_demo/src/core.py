@@ -123,6 +123,7 @@ class Demo(object):
                                 self.change_state or task_final_state)) or
                                self.new_task or rospy.is_shutdown()):
                         # Remaining in state. Allow state action to continue.
+                        print 'core sleeping', self.state_finish, self. change_state
                         rospy.sleep(0.1)
 
                     self.change_state = False
