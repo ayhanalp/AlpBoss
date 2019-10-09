@@ -226,9 +226,9 @@ class Controller(object):
         self._traj_strg = {'u': [0.0], 'v': [0.0], 'w': [0.0],
                            'x': [0.0], 'y': [0.0], 'z': [0.0]}
         self.X = np.array(
-                    [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0]])
+                    [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0]])
         self.desired_yaw = 0.
-        self.drone_yaw_est = 0.0
+        self.drone_yaw_est = 0.
         self.pos_nrm = np.inf
         self.fb_cmd_prev = Twist()
         self.pos_error_prev = PointStamped()
@@ -247,7 +247,6 @@ class Controller(object):
         self.ff_cmd = Twist()
         self.drone_vel_est = Point()
         self.drone_pose_est = Pose()
-        self.drone_yaw_est = 0.
 
     def _request_ctrl_authority(self):
         '''Service call to dji sdk to obtain control authority.
