@@ -675,8 +675,8 @@ class Controller(object):
                       [self.ff_velocity.twist.linear.y],
                       [self.ff_velocity.twist.linear.z]])
 
-        Y = np.matmul(self.C, self.X) + np.matmul(self.D, u)
-        self.X = np.matmul(self.A, self.X) + np.matmul(self.B, u)
+        Y = np.dot(self.C, self.X) + np.dot(self.D, u)
+        self.X = np.dot(self.A, self.X) + np.dot(self.B, u)
         self.ff_cmd.linear.x = Y[0, 0]
         self.ff_cmd.linear.y = Y[1, 0]
         self.ff_cmd.linear.z = Y[2, 0]
