@@ -1138,11 +1138,9 @@ class Controller(object):
         rviz.
         '''
         self.drawn_path.header.stamp = rospy.get_rostime()
-<<<<<<< HEAD
+
         for i in range(0,len(self.drawn_pos_x)):
-=======
-        for i in range(0, len(self.drawn_pos_x)+1):
->>>>>>> ced8272aef3167cd41aedef7750b161828f89bf2
+
             point = Point(x=self.drawn_pos_x[i],
                           y=self.drawn_pos_y[i],
                           z=self.drawn_pos_z[i])
